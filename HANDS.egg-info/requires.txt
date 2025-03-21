@@ -1,0 +1,5 @@
+numba==0.57.1
+numpy<1.25
+torch==2.6.0
+gymnasium==1.1.0
+tensorboard==2.19.0

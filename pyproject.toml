@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "HANDS"
+version = "0.1.0"
+description = "Harmonized Agents for Networked Dexterous Soft robotics"
+authors = [{ name = "Rowan Ramamurthy", email = "rramamurthy30@gatech.edu" }]
+dependencies = [
+    "numba==0.57.1",
+    "numpy<1.25",
+    "torch==2.6.0",
+    "gymnasium==1.1.0",
+    "tensorboard==2.19.0"
+]
+readme = "readme.md"
+requires-python = "==3.11.11"
+
+[tool.setuptools]
+packages=["HANDS"]
