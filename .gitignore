@@ -1,0 +1,25 @@
+# Python
+__pycache__
+*.egg-info
+*.egg-info/
+
+# Virtual Env
+dev/
+venv/
+
+# VS Code Settings
+.vscode/
+
+# Build
+build/
+
+# Mac OS
+.DS_Store
+
+# Experiments
+runs/
+weights/
+
+# Videos
+*.mp4
+output
