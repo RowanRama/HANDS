@@ -1,3 +1,5 @@
+# Copied and modified from TendonForces project by gabotuzl under MIT License
+
 import numpy as np
 from elastica.typing import SystemType, RodType
 

@@ -15,7 +15,7 @@ from elastica.modules import (
 from elastica.rod.cosserat_rod import CosseratRod
 from elastica.boundary_conditions import OneEndFixedBC
 from elastica.external_forces import GravityForces
-from elastica.external_forces import TendonForces
+from HANDS.TendonForces import TendonForces
 from elastica.dissipation import AnalyticalLinearDamper
 from elastica.callback_functions import CallBackBaseClass
 from elastica.timestepper.symplectic_steppers import PositionVerlet
@@ -146,10 +146,10 @@ class MyCallBack(CallBackBaseClass):
     def make_callback(self, system, time, current_step: int):
         if current_step % self.every == 0:
             # Save time, step number, position, orientation and velocity
-            #self.callback_params["time"].append(time)
+            self.callback_params["time"].append(time)
             #self.callback_params["step"].append(current_step)
             self.callback_params["position" ].append(system.position_collection.copy())
-            self.callback_params["directors"].append(system.director_collection.copy())
+            #self.callback_params["directors"].append(system.director_collection.copy())
             # self.callback_params["velocity" ].append(system.velocity_collection.copy())
             for i in range(len(system.position_collection)):
                 # Iterate over each element of the row

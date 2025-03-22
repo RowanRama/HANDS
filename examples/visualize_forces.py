@@ -15,7 +15,7 @@ from elastica.modules import (
 from elastica.rod.cosserat_rod import CosseratRod
 from elastica.boundary_conditions import OneEndFixedBC
 from elastica.external_forces import GravityForces
-from elastica.external_forces import TendonForces
+from HANDS.TendonForces import TendonForces
 from elastica.dissipation import AnalyticalLinearDamper
 from elastica.callback_functions import CallBackBaseClass
 from elastica.timestepper.symplectic_steppers import PositionVerlet
@@ -27,8 +27,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import sys
 
 import matplotlib.pyplot as plt
-from moviepy.editor import VideoClip
-from moviepy.video.io.bindings import mplfig_to_npimage
 
 plt.switch_backend('TkAgg')
 plt.close("all")
@@ -119,7 +117,7 @@ CantileverRod.add_forcing_to(rod1).using(
     final_vertebra_node = 30,
     vertebra_mass = 0.002,
     tension = 10.0,
-    vertebra_height_orientation = np.array([0.0, 1.0, 0.0]), # Orientation in the local frame (X Y Z)
+    vertebra_height_orientation = np.array([0.0, 0.0, 0.0]), # Orientation in the local frame (X Y Z)
     n_elements = n_elements
 )
 
@@ -149,8 +147,8 @@ class MyCallBack(CallBackBaseClass):
     def make_callback(self, system, time, current_step: int):
         if current_step % self.every == 0:
             # Save time, step number, position, orientation and velocity
-            #self.callback_params["time"].append(time)
-            #self.callback_params["step"].append(current_step)
+            # self.callback_params["time"].append(time)
+            # self.callback_params["step"].append(current_step)
             self.callback_params["position" ].append(system.position_collection.copy())
             self.callback_params["directors"].append(system.director_collection.copy())
             # self.callback_params["velocity" ].append(system.velocity_collection.copy())
@@ -260,10 +258,10 @@ def make_frame(t):
     return plt.savefig(fig)
  
 # creating animation
-clip = VideoClip(make_frame, duration = final_time)
+#clip = VideoClip(make_frame, duration = final_time)
  
 # displaying animation with auto play and looping
-clip.write_videofile("Rod_Simulation.mp4", codec = "libx264", fps = rendering_fps)
+#clip.write_videofile("Rod_Simulation.mp4", codec = "libx264", fps = rendering_fps)
 
 original_matrix = np.array([[0, 0, 1],[0, -1, 0],[1, 0, 0]])
 
