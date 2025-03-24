@@ -85,49 +85,49 @@ CantileverRod.constrain(rod1).using(
     constrained_director_idx=(0,)   # Element number to apply BC
 )
 
-CantileverRod.add_forcing_to(rod1).using(
-    TendonForces,
-    vertebra_height = 0.015,
-    num_vertebrae = 6,
-    first_vertebra_node = 2,
-    final_vertebra_node = 98,
-    vertebra_mass = 0.002,
-    tension = 5.0,
-    vertebra_height_orientation = np.array([0.0, -1.0, 0.0]), # Orientation in the local frame (X Y Z)
-    n_elements = n_elements
-)
+# CantileverRod.add_forcing_to(rod1).using(
+#     TendonForces,
+#     vertebra_height = 0.015,
+#     num_vertebrae = 6,
+#     first_vertebra_node = 2,
+#     final_vertebra_node = 98,
+#     vertebra_mass = 0.002,
+#     tensions = [0.],
+#     vertebra_height_orientation = np.array([0.0, -1.0, 0.0]), # Orientation in the local frame (X Y Z)
+#     n_elements = n_elements
+# )
 
-CantileverRod.add_forcing_to(rod1).using(
-    TendonForces,
-    vertebra_height = 0.0075,
-    num_vertebrae = 15,
-    first_vertebra_node = 2,
-    final_vertebra_node = 50,
-    vertebra_mass = 0.002,
-    tension = 10.0,
-    vertebra_height_orientation = np.array([1.0, 0.0, 0.0]), # Orientation in the local frame (X Y Z)
-    n_elements = n_elements
-)
+# CantileverRod.add_forcing_to(rod1).using(
+#     TendonForces,
+#     vertebra_height = 0.0075,
+#     num_vertebrae = 15,
+#     first_vertebra_node = 2,
+#     final_vertebra_node = 50,
+#     vertebra_mass = 0.002,
+#     tensions = [5.0],
+#     vertebra_height_orientation = np.array([1.0, 0.0, 0.0]), # Orientation in the local frame (X Y Z)
+#     n_elements = n_elements
+# )
 
 CantileverRod.add_forcing_to(rod1).using(
     TendonForces,
     vertebra_height = 0.0105,
     num_vertebrae = 10,
     first_vertebra_node = 2,
-    final_vertebra_node = 30,
+    final_vertebra_node = 98,
     vertebra_mass = 0.002,
-    tension = 10.0,
-    vertebra_height_orientation = np.array([0.0, 0.0, 0.0]), # Orientation in the local frame (X Y Z)
+    tensions = [10.0],
+    vertebra_height_orientation = np.array([0.0, 1.0, 0.0]), # Orientation in the local frame (X Y Z)
     n_elements = n_elements
 )
 
-gravity_magnitude = -9.80665 #Value in m^2/s for gravity in simulation
-acc_gravity = np.zeros(3)
-acc_gravity[2] = gravity_magnitude
-CantileverRod.add_forcing_to(rod1).using(
-    GravityForces,
-    acc_gravity = acc_gravity
-)
+# gravity_magnitude = -9.80665 #Value in m^2/s for gravity in simulation
+# acc_gravity = np.zeros(3)
+# acc_gravity[2] = gravity_magnitude
+# CantileverRod.add_forcing_to(rod1).using(
+#     GravityForces,
+#     acc_gravity = acc_gravity
+# )
 
 
 CantileverRod.dampen(rod1).using(
@@ -270,16 +270,40 @@ plt.close("all")
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-ax.set_title(f'\nArbitrary tendon configuration, \nE = {round(youngs_modulus * 1e-6,4)} MPa, G = {round(shear_modulus * 1e-6,4)} MPa', fontsize= 22)
+ax.set_title(f'\nArbitrary tendon configuration with forces, \nE = {round(youngs_modulus * 1e-6,4)} MPa, G = {round(shear_modulus * 1e-6,4)} MPa', fontsize= 22)
 ax.set_xlabel('X Axis')
 ax.set_ylabel('Y Axis')
 ax.set_zlabel('Z Axis')
 
-# Scatter plot
+# Scatter plot for rod position
 ax.scatter(position_data[-1][0], position_data[-1][1], position_data[-1][2])
 ax.axes.set_zlim3d(bottom=-base_length,top=base_length)
 ax.axes.set_ylim3d(bottom=-base_length,top=base_length)
 ax.axes.set_xlim(-0.01,base_length)
+
+# Get forces from the last timestep
+forces = rod1.internal_forces
+# Scale forces for visualization (adjust this value to make arrows visible but not too large)
+force_scale = 0.1  # Smaller scale factor since we're not normalizing
+
+num_vertebrae = 10
+first_vertebra_node = 2
+final_vertebra_node = 98
+vertebra_nodes = []
+vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae - 1)
+for i in range(num_vertebrae):
+    vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
+
+# Plot force vectors at each node
+for i in vertebra_nodes:
+    pos = np.array([position_data[-1][0][i], position_data[-1][1][i], position_data[-1][2][i]])
+    force = forces[:, i]
+    force_magnitude = np.linalg.norm(force)
+    print(f"Node {i} - Position: {pos}, Force: {force}, Magnitude: {force_magnitude}")
+    # Plot force vector with actual magnitude
+    ax.quiver(pos[0], pos[1], pos[2],
+             force[0], force[1], force[2],
+             length=force_scale, color='purple', alpha=0.5, normalize=False)
 
 # Labeling axes
 ax.set_xlabel('X-axis')
@@ -298,6 +322,7 @@ ax.text(x_point, y_point, z_point, annotation_text, color='red', fontsize= 15)
 
 original_directors = directors_data[-1][...,0]
 
+
 num_vertebrae = 6
 first_vertebra_node = 2
 final_vertebra_node = 98
@@ -306,69 +331,72 @@ vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae 
 for i in range(num_vertebrae):
     vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
 
-for node in vertebra_nodes:
-    local_directors = directors_data[-1][...,node]
-    vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
-    vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
-    vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
-    vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
-    vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
+# for node in vertebra_nodes:
+#     local_directors = directors_data[-1][...,node]
+#     print(local_directors , "    " , position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node])
+#     vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
+#     vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
+#     vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
+#     vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
+#     vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
 
-    # Scale the arrows for better visibility
-    scale = 0.10
+#     # Scale the arrows for better visibility
+#     scale = 0.10
 
-    #Plot the arrows using quiver
-    ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
-        vertebra_coord_syst_y[0], vertebra_coord_syst_y[1], vertebra_coord_syst_y[2],
-        length=scale, color='b', normalize=True)
+#     #Plot the arrows using quiver
+#     ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
+#         vertebra_coord_syst_y[0], vertebra_coord_syst_y[1], vertebra_coord_syst_y[2],
+#         length=scale, color='b', normalize=True)
 
 
-num_vertebrae = 15
-first_vertebra_node = 2
-final_vertebra_node = 50
-vertebra_nodes = []
-vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae - 1)
-for i in range(num_vertebrae):
-    vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
+# num_vertebrae = 15
+# first_vertebra_node = 2
+# final_vertebra_node = 50
+# vertebra_nodes = []
+# vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae - 1)
+# for i in range(num_vertebrae):
+#     vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
 
-for node in vertebra_nodes:
-    local_directors = directors_data[-1][...,node]
-    vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
-    vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
-    vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
-    vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
-    vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
+# for node in vertebra_nodes:
+#     local_directors = directors_data[-1][...,node]
+#     print(local_directors , "    " , position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node])
+#     vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
+#     vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
+#     vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
+#     vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
+#     vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
 
-    # Scale the arrows for better visibility
-    scale = 0.05
+#     # Scale the arrows for better visibility
+#     scale = 0.05
 
-    # Plot the arrows using quiver
-    ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
-        vertebra_coord_syst_x[0], vertebra_coord_syst_x[1], vertebra_coord_syst_x[2],
-        length=scale, color='r', normalize=True)
+#     # Plot the arrows using quiver
+#     ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
+#         vertebra_coord_syst_x[0], vertebra_coord_syst_x[1], vertebra_coord_syst_x[2],
+#         length=scale, color='r', normalize=True)
 
-num_vertebrae = 10
-first_vertebra_node = 2
-final_vertebra_node = 30
-vertebra_nodes = []
-vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae - 1)
-for i in range(num_vertebrae):
-    vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
+# num_vertebrae = 10
+# first_vertebra_node = 2
+# final_vertebra_node = 30
+# vertebra_nodes = []
+# vertebra_increment = (final_vertebra_node - first_vertebra_node)/(num_vertebrae - 1)
+# for i in range(num_vertebrae):
+#     vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
 
-for node in vertebra_nodes:
-    local_directors = directors_data[-1][...,node]
-    vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
-    vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
-    vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
-    vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
-    vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
+# for node in vertebra_nodes:
+#     local_directors = directors_data[-1][...,node]
+#     print(local_directors , "    " , position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node])
+#     vertebra_pos = np.array([position_data[-1][0][node], position_data[-1][1][node], position_data[-1][2][node]])
+#     vertebra_coord_syst_x = np.array([0.0, 0.0, 1.0])
+#     vertebra_coord_syst_y = np.array([0.0, 1.0, 0.0])
+#     vertebra_coord_syst_z = np.array([0.0, 0.0, -1.0])
+#     vertebra_coord_syst_zz = np.array([0.0, -1.0, 0.0])
 
-    # Scale the arrows for better visibility
-    scale = 0.07
+#     # Scale the arrows for better visibility
+#     scale = 0.07
 
-    ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
-        vertebra_coord_syst_zz[0], vertebra_coord_syst_zz[1], vertebra_coord_syst_zz[2],
-        length=scale, color='g', normalize=True)
+#     ax.quiver(vertebra_pos[0], vertebra_pos[1], vertebra_pos[2],
+#         vertebra_coord_syst_zz[0], vertebra_coord_syst_zz[1], vertebra_coord_syst_zz[2],
+#         length=scale, color='g', normalize=True)
 
 ax.view_init(elev=30, azim=20)
 plt.show()
