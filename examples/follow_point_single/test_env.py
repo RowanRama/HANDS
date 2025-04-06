@@ -16,22 +16,20 @@ def tension_function(t):
     tension2 = 0  # Tension for tendon 2
     tension3 = 0
     tension4 = 0
-    return np.ones(4) * t # Return zero for all tendons if you want to keep them slack, otherwise return the tensions defined above.
+    # return np.ones(4) * 0.0 # Return zero for all tendons if you want to keep them slack, otherwise return the tensions defined above.
     return np.array([tension1, tension2, tension3, tension4])  # Return tensions for all tendons
     
 def test_environment():
-    import numpy as np
-
     env = Environment(n_elem=50, mode=1, target_position=np.array([0.05, 0.05, 0.05]), time_step=dT, gravity_enable=False)
     #state = env.reset() #initializes with params
 
-    num_steps = 100
+    num_steps = 15
     outputs = []  # Store the outputs for each step
     
     for step in tqdm(range(num_steps)):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
         action = tension_function(step * dT)  # Use the tension function to get the action for this step
-        state, reward, done, _ = env.step(action)  # Take a step in the environment
+        state, reward, done, additional_info = env.step(action)  # Take a step in the environment
         
         # print(f"Step {step}: Reward = {reward}, State = {state}")
         step_data = {
@@ -40,11 +38,14 @@ def test_environment():
             "state": state,
             "reward": reward,
             "done": done,
+            "points_bb": additional_info["position"]
         }
         outputs.append(step_data)
         if done:
             print("Episode finished")
             break
+        
+    print(outputs)
     return outputs  # Return the collected outputs for plotting or further analysis
 
 def plot_results(outputs):
@@ -52,41 +53,91 @@ def plot_results(outputs):
     Optional function to plot the results of the simulation.
     """
     
-    
+    # Print the size of points_bb
+    if not outputs:
+        print("No data to plot.")
+        return
+    if 'points_bb' in outputs[0]:
+        print("points_bb found in outputs, size of points_bb:", len(outputs[0]['points_bb']))
+    else:
+        print("points_bb not found in outputs, cannot plot.")
+        return
     steps = [data['step'] for data in outputs]
     rewards = [data['reward'] for data in outputs]
     actions = [(data['action']) for data in outputs]
     states = [np.array(data['state']) for data in outputs]
-    plt.figure(figsize=(10, 5))
-    for i in range(4):  # Assuming there are 4 tendons
-        tendon_tensions = [action[i] for action in actions]
-        plt.plot(steps, tendon_tensions, marker='o', linestyle='-', label=f'Tendon {i+1}')
-    plt.title('Tendon Tensions over Steps')
-    plt.xlabel('Step')
-    plt.ylabel('Tension')
-    plt.legend()
-    plt.grid()
+    # plt.figure(figsize=(10, 5))
+    # for i in range(4):  # Assuming there are 4 tendons
+    #     tendon_tensions = [action[i] for action in actions]
+    #     plt.plot(steps, tendon_tensions, marker='o', linestyle='-', label=f'Tendon {i+1}')
+    # plt.title('Tendon Tensions over Steps')
+    # plt.xlabel('Step')
+    # plt.ylabel('Tension')
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
+    # # Extract the 3D positions from the states
+    # positions = [state[:3] for state in states]  # Assuming the first three entries are the 3D positions
+    # positions = np.array(positions)  # Convert to a NumPy array for easier manipulation
+
+    # # Create a 3D plot
+    # fig = plt.figure(figsize=(10, 7))
+    # ax = fig.add_subplot(111, projection='3d')
+
+    # ax.plot(positions[:, 0], positions[:, 1], positions[:, 2], marker='o', linestyle='-', label='Trajectory')
+    # ax.set_title('3D Trajectory of the Object')
+    # ax.set_xlabel('X Position')
+    # ax.set_ylabel('Y Position')
+    # ax.set_zlabel('Z Position')
+    # ax.legend()
+    # ax.grid()
+    # # ax.set_xlim([-0.1, 0.1])
+    # # ax.set_ylim([-0.1, 0.1])
+    # # ax.set_zlim([-0.1, 0.1])
+
+    # plt.show()
+    
+    # Plot the backbone of the Cosserat rod using points_bb for the first and final position in two subplots
+    fig = plt.figure(figsize=(12, 6))
+
+    # First position
+    ax1 = fig.add_subplot(121, projection='3d')
+    first_points_bb = outputs[0]['points_bb']  # Extract the position_collection for the first step
+    ax1.plot(first_points_bb[0, :], first_points_bb[1, :], first_points_bb[2, :], marker='o', linestyle='-', alpha=0.7)
+    ax1.set_title('Backbone of the Cosserat Rod (First Position)')
+    ax1.set_xlabel('X Position')
+    ax1.set_ylabel('Y Position')
+    ax1.set_zlabel('Z Position')
+    ax1.grid()
+
+    # Final position
+    ax2 = fig.add_subplot(122, projection='3d')
+    final_points_bb = outputs[-1]['points_bb']  # Extract the position_collection for the final step
+    ax2.plot(final_points_bb[0, :], final_points_bb[1, :], final_points_bb[2, :], marker='o', linestyle='-', alpha=0.7)
+    ax2.set_title('Backbone of the Cosserat Rod (Final Position)')
+    ax2.set_xlabel('X Position')
+    ax2.set_ylabel('Y Position')
+    ax2.set_zlabel('Z Position')
+    ax2.grid()
+
+    plt.tight_layout()
     plt.show()
-    # Extract the 3D positions from the states
-    positions = [state[:3] for state in states]  # Assuming the first three entries are the 3D positions
-    positions = np.array(positions)  # Convert to a NumPy array for easier manipulation
+    
+    # Plot for the entire backbone of the Cosserat rod over all steps
+    # fig = plt.figure(figsize=(10, 7))
+    # ax = fig.add_subplot(111, projection='3d')
 
-    # Create a 3D plot
-    fig = plt.figure(figsize=(10, 7))
-    ax = fig.add_subplot(111, projection='3d')
+    # for data in outputs:
+    #     points_bb = data['points_bb']  # Extract the position_collection
+    #     ax.plot(points_bb[0, :], points_bb[1, :], points_bb[2, :], marker='o', linestyle='-', alpha=0.7)
 
-    ax.plot(positions[:, 0], positions[:, 1], positions[:, 2], marker='o', linestyle='-', label='Trajectory')
-    ax.set_title('3D Trajectory of the Object')
-    ax.set_xlabel('X Position')
-    ax.set_ylabel('Y Position')
-    ax.set_zlabel('Z Position')
-    ax.legend()
-    ax.grid()
-    ax.set_xlim([-0.1, 0.1])
-    ax.set_ylim([-0.1, 0.1])
-    ax.set_zlim([-0.1, 0.1])
+    # ax.set_title('Backbone of the Cosserat Rod')
+    # ax.set_xlabel('X Position')
+    # ax.set_ylabel('Y Position')
+    # ax.set_zlabel('Z Position')
+    # ax.grid()
 
-    plt.show()
+    # plt.show()
     
 if __name__ == "__main__":
     outputs = test_environment()

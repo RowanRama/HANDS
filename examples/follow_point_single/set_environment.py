@@ -76,14 +76,14 @@ class Environment(gymnasium.Env):
         time_step=1e-4,
         num_steps_per_update=100,
         max_tension=1.0,
-        rod_length=0.1,
-        rod_radius=0.001,
-        youngs_modulus=1e6,
-        shear_modulus=1e6,
+        # rod_length=0.1,
+        # rod_radius=0.001,
+        youngs_modulus=16.598637e6,
+        shear_modulus=7.216880e6,
         density=1000.0,
-        num_vertebrae=5,
-        vertebra_height=0.002,
-        vertebra_mass=0.001,
+        num_vertebrae=10,
+        vertebra_height=0.0105,
+        vertebra_mass=0.002,
         mode=1,
         target_position=None,
         sphere_radius=0.005,
@@ -108,18 +108,18 @@ class Environment(gymnasium.Env):
         self.simulator = SoftRobotSimulator()
         
         # Create rod
-        base_length = 1.0  # rod base length
-        radius_tip = 0.05  # radius of the arm at the tip
-        radius_base = 0.05  # radius of the arm at the base
-        radius_along_rod = np.linspace(radius_base, radius_tip, n_elem)
-        print("radius along rod:", radius_along_rod)
+        base_length = 0.25  # rod base length
+        # radius_tip = 0.05  # radius of the arm at the tip
+        radius_base = 0.011/2  # radius of the arm at the base
+        # radius_along_rod = np.linspace(radius_base, radius_tip, n_elem)
+        # print("radius along rod:", radius_along_rod)
         density = 1000
-        nu = 10  # dissipation coefficient
-        E = 1e7  # Young's Modulus
-        poisson_ratio = 0.5
+        # nu = 10  # dissipation coefficient
+        # E = 1e7  # Young's Modulus
+        # poisson_ratio = 0.5
         start = np.zeros((3,))
-        direction =  np.array([0.0, 1.0, 0.0]) 
-        normal = np.array([0.0, 0.0, 1.0])
+        direction =  np.array([0.0, 0.0, 1.0]) # Rod is along +Z direction
+        normal = np.array([1.0, 0.0, 0.0]) # Normal should be a vector in the cross-section
         self.tendon_force_classes = []
 
 
@@ -130,8 +130,8 @@ class Environment(gymnasium.Env):
             normal = normal,
             youngs_modulus=youngs_modulus,
             shear_modulus=shear_modulus,
-            base_length=rod_length,
-            base_radius= radius_along_rod,
+            base_length=base_length,
+            base_radius= radius_base,
             density=density
             )
         
@@ -143,11 +143,23 @@ class Environment(gymnasium.Env):
             self.simulator.add_forcing_to(self.shearable_rod).using(
                 GravityForces, acc_gravity=np.array([0.0, 0.0, -9.80665])
             )
-        else:
-            self.simulator.add_forcing_to(self.shearable_rod).using(
-                GravityForces, acc_gravity=np.array([0.0, 0.0, 0.0])
-            )
-
+        # else:
+        #     self.simulator.add_forcing_to(self.shearable_rod).using(
+        #         GravityForces, acc_gravity=np.array([0.0, 0.0, 0.0])
+        #     )
+        
+        ## Damping for the rod
+        self.simulator.dampen(self.shearable_rod).using(
+            AnalyticalLinearDamper,
+            damping_constant=0.1,
+            time_step = time_step
+        )
+        ## Constrain the rod at one end (fixed boundary condition)
+        self.simulator.constrain(self.shearable_rod).using(
+            OneEndFixedBC,                  # Displacement BC being applied
+            constrained_position_idx=(0,),  # Node number to apply BC
+            constrained_director_idx=(0,)   # Element number to apply BC
+        )
         # Create tendon forces for each cardinal direction
         self.tendon_forces = []
         directions = [
@@ -155,7 +167,7 @@ class Environment(gymnasium.Env):
             np.array([-1.0, 0.0, 0.0]), # -X
             np.array([0.0, 1.0, 0.0]),  # +Y
             np.array([0.0, -1.0, 0.0]), # -Y
-        ]
+        ] # These vectors should be orthogonal to the rod's direction
         
         # for direction in directions: #1 force for each direction
         #     tendon_force_class = TendonForces(
@@ -172,8 +184,8 @@ class Environment(gymnasium.Env):
             self.simulator.add_forcing_to(self.shearable_rod).using(
                 TendonForces,vertebra_height=vertebra_height,
                 num_vertebrae=num_vertebrae,
-                first_vertebra_node=1,
-                final_vertebra_node=n_elem,
+                first_vertebra_node=2,
+                final_vertebra_node=n_elem-2,
                 vertebra_mass=vertebra_mass,
                 tensions=[0.0],  # Initial tension is 0
                 vertebra_height_orientation=direction,
@@ -395,7 +407,7 @@ class Environment(gymnasium.Env):
             
         self.current_step += 1
         
-        return state, reward, done, {"time": self.time_tracker}
+        return state, reward, done, {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy()}
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
