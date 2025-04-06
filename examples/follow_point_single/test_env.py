@@ -12,7 +12,7 @@ def tension_function(t):
     
     Returns a tension value for the four tendons (assuming 4 tendons in this example).
     """
-    tension1 = 0.1*(1-np.cos(t))  # Tension for tendon 1
+    tension1 = 0.1*(1-np.cos(t*0.2))  # Tension for tendon 1
     tension2 = 0  # Tension for tendon 2
     tension3 = 0
     tension4 = 0
@@ -23,7 +23,7 @@ def test_environment():
     env = Environment(n_elem=50, mode=1, target_position=np.array([0.05, 0.05, 0.05]), time_step=dT, gravity_enable=False)
     #state = env.reset() #initializes with params
 
-    num_steps = 15
+    num_steps = 50000
     outputs = []  # Store the outputs for each step
     
     for step in tqdm(range(num_steps)):

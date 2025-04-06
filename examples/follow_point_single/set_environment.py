@@ -118,8 +118,8 @@ class Environment(gymnasium.Env):
         # E = 1e7  # Young's Modulus
         # poisson_ratio = 0.5
         start = np.zeros((3,))
-        direction =  np.array([0.0, 0.0, 1.0]) # Rod is along +Z direction
-        normal = np.array([1.0, 0.0, 0.0]) # Normal should be a vector in the cross-section
+        direction =  np.array([1.0, 0.0, 0.0]) # Rod is along +Z direction
+        normal = np.array([0.0, 0.0, 1.0]) # Normal should be a vector in the cross-section
         self.tendon_force_classes = []
 
 
