@@ -89,6 +89,7 @@ class Environment(gymnasium.Env):
         sphere_radius=0.005,
         sphere_density=1000.0,
         sphere_initial_velocity=0.1,
+        gravity_enable = True,  # Enable gravity by default
     ):
         super(Environment, self).__init__()
 
@@ -138,9 +139,14 @@ class Environment(gymnasium.Env):
         self.simulator.append(self.shearable_rod)
         
         # Add gravity
-        self.simulator.add_forcing_to(self.shearable_rod).using(
-            GravityForces, acc_gravity=np.array([0.0, 0.0, -9.80665])
-        )
+        if gravity_enable:
+            self.simulator.add_forcing_to(self.shearable_rod).using(
+                GravityForces, acc_gravity=np.array([0.0, 0.0, -9.80665])
+            )
+        else:
+            self.simulator.add_forcing_to(self.shearable_rod).using(
+                GravityForces, acc_gravity=np.array([0.0, 0.0, 0.0])
+            )
 
         # Create tendon forces for each cardinal direction
         self.tendon_forces = []
