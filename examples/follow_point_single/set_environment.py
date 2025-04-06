@@ -1,7 +1,7 @@
 import gymnasium
 from gymnasium import spaces
 import numpy as np
-
+from functools import partial
 import copy
 import sys
 
@@ -101,19 +101,38 @@ class Environment(gymnasium.Env):
         self.n_elements = n_elem + 1
         self.mode = mode
         self.sphere_initial_velocity = sphere_initial_velocity
+        self.StatefulStepper = PositionVerlet()
 
         # Create simulator
         self.simulator = SoftRobotSimulator()
         
         # Create rod
+        base_length = 1.0  # rod base length
+        radius_tip = 0.05  # radius of the arm at the tip
+        radius_base = 0.05  # radius of the arm at the base
+        radius_along_rod = np.linspace(radius_base, radius_tip, n_elem)
+        print("radius along rod:", radius_along_rod)
+        density = 1000
+        nu = 10  # dissipation coefficient
+        E = 1e7  # Young's Modulus
+        poisson_ratio = 0.5
+        start = np.zeros((3,))
+        direction =  np.array([0.0, 1.0, 0.0]) 
+        normal = np.array([0.0, 0.0, 1.0])
+        self.tendon_force_classes = []
+
+
         self.shearable_rod = CosseratRod.straight_rod(
             n_elem,
-            rod_length,
-            rod_radius,
-            density,
+            start=start,
+            direction = direction,# rod direction: pointing upwards
+            normal = normal,
             youngs_modulus=youngs_modulus,
             shear_modulus=shear_modulus,
-        )
+            base_length=rod_length,
+            base_radius= radius_along_rod,
+            density=density
+            )
         
         # Add rod to simulator
         self.simulator.append(self.shearable_rod)
@@ -132,9 +151,20 @@ class Environment(gymnasium.Env):
             np.array([0.0, -1.0, 0.0]), # -Y
         ]
         
-        for direction in directions:
-            tendon_force = TendonForces(
-                vertebra_height=vertebra_height,
+        # for direction in directions: #1 force for each direction
+        #     tendon_force_class = TendonForces(
+        #         vertebra_height=vertebra_height,
+        #         num_vertebrae=num_vertebrae,
+        #         first_vertebra_node=1,
+        #         final_vertebra_node=n_elem,
+        #         vertebra_mass=vertebra_mass,
+        #         tensions=[0.0],  # Initial tension is 0
+        #         vertebra_height_orientation=direction,
+        #         n_elements=n_elem
+        #     )
+        for direction in directions: #1 force for each direction
+            self.simulator.add_forcing_to(self.shearable_rod).using(
+                TendonForces,vertebra_height=vertebra_height,
                 num_vertebrae=num_vertebrae,
                 first_vertebra_node=1,
                 final_vertebra_node=n_elem,
@@ -143,8 +173,10 @@ class Environment(gymnasium.Env):
                 vertebra_height_orientation=direction,
                 n_elements=n_elem
             )
-            self.simulator.add_forcing_to(self.shearable_rod).using(tendon_force)
-            self.tendon_forces.append(tendon_force)
+        print("added tendon forces")
+            # print("tendon force is a", type(tendon_force_class))
+            # self.simulator.add_forcing_to(self.shearable_rod).using(tendon_force_class)
+            # self.tendon_force_classes.append(tendon_force_class)
 
         # Create target sphere
         self.sphere = Sphere(
@@ -191,6 +223,9 @@ class Environment(gymnasium.Env):
 
         # Initialize simulation
         self.simulator.finalize()
+        self.do_step, self.stages_and_updates = extend_stepper_interface(
+            self.StatefulStepper, self.simulator
+        )
         self.time_tracker = 0.0
         self.current_step = 0
         self.total_learning_steps = int(final_time / (time_step * num_steps_per_update))
