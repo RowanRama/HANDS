@@ -176,7 +176,7 @@ class Environment(gymnasium.Env):
         #         first_vertebra_node=1,
         #         final_vertebra_node=n_elem,
         #         vertebra_mass=vertebra_mass,
-        #         tensions=[0.0],  # Initial tension is 0
+        #         tensions=0.0,  # Initial tension is 0
         #         vertebra_height_orientation=direction,
         #         n_elements=n_elem
         #     )
@@ -187,7 +187,7 @@ class Environment(gymnasium.Env):
                 first_vertebra_node=2,
                 final_vertebra_node=n_elem-2,
                 vertebra_mass=vertebra_mass,
-                tensions=[0.0],  # Initial tension is 0
+                tensions=0.0,  # Initial tension is 0
                 vertebra_height_orientation=direction,
                 n_elements=n_elem
             )
@@ -280,7 +280,7 @@ class Environment(gymnasium.Env):
         
         # Reset tendon forces
         for tendon in self.tendon_forces:
-            tendon.tensions = [0.0]
+            tendon.tensions = 0.0
         
         # Reset target based on mode
         if self.mode == 2:
@@ -339,7 +339,7 @@ class Environment(gymnasium.Env):
         
         # Update tendon forces
         for i, tendon in enumerate(self.tendon_forces):
-            tendon.tensions = [action[i]]
+            tendon.tensions = action[i]
         
         # Simulate for num_steps_per_update steps
         for _ in range(self.num_steps_per_update):

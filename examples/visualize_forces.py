@@ -116,7 +116,7 @@ CantileverRod.add_forcing_to(rod1).using(
     first_vertebra_node = 2,
     final_vertebra_node = 98,
     vertebra_mass = 0.002,
-    tensions = [10.0],
+    tensions = 10.0,
     vertebra_height_orientation = np.array([0.0, 1.0, 0.0]), # Orientation in the local frame (X Y Z)
     n_elements = n_elements
 )
