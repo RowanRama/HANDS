@@ -1,3 +1,5 @@
+# Copied and modified from TendonForces project by gabotuzl under MIT License
+
 import numpy as np
 from elastica.typing import SystemType, RodType
 
@@ -17,8 +19,8 @@ class TendonForces(NoForces):
             Amount of vertebrae to be used in the system.
         vertebra_height_vector: numpy.ndarray
             1D (dim) numpy array. Describes the orientation and height in space of the vertebrae in the system.
-        tension: float
-            Tension applied to the tendon in the system.
+        tensions: list[float]
+            List of tensions applied to different segments of the tendon in the system.
         n_elements: int
             Total amount of nodes in the rod system. This value is set in the simulator and is copied to this class for later use.
         vertebra_weight_vector: numpy.ndarray
@@ -32,7 +34,7 @@ class TendonForces(NoForces):
 
     """
 
-    def __init__(self, vertebra_height, num_vertebrae, first_vertebra_node, final_vertebra_node, vertebra_mass, tension, vertebra_height_orientation, n_elements):
+    def __init__(self, vertebra_height, num_vertebrae, first_vertebra_node, final_vertebra_node, vertebra_mass, tensions, vertebra_height_orientation, n_elements):
         """
 
         Parameters 
@@ -47,8 +49,8 @@ class TendonForces(NoForces):
             The last node to have a vertebra, from the base of the rod to the tip.
         vertebra_mass: float
             Total mass of a single vertebra.
-        tension: float
-            Tension applied to the tendon in the system.
+        tensions: list[float]
+            List of tensions applied to different segments of the tendon in the system.
         vertebra_height_orientation: numpy.ndarray
             1D (dim) numpy array. Describes the orientatation of the vertebrae in the system.
         n_elements: int
@@ -60,7 +62,7 @@ class TendonForces(NoForces):
         self.vertebra_height = vertebra_height
         self.num_vertebrae = num_vertebrae
         self.vertebra_height_vector = vertebra_height_orientation * vertebra_height
-        self.tension = tension
+        self.tensions = tensions
         self.n_elements = n_elements
         self.vertebra_weight_vector = np.array([0.0, 0.0, -vertebra_mass * 9.80665])
 
@@ -70,6 +72,14 @@ class TendonForces(NoForces):
         for i in range(num_vertebrae):
             self.vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
 
+        # Calculate segment boundaries for multiple tensions
+        self.segment_boundaries = []
+        num_segments = len(tensions)
+        for i in range(num_segments):
+            start_idx = round(i * len(self.vertebra_nodes) / num_segments)
+            end_idx = round((i + 1) * len(self.vertebra_nodes) / num_segments)
+            self.segment_boundaries.append((start_idx, end_idx))
+
     def apply_forces(self, system: SystemType, time: np.float64 = 0.0):
         # The application of the force data is done outside of the @njit decorated function because self.force_data needs to be referenced in self.compute_torques()
 
@@ -77,7 +87,7 @@ class TendonForces(NoForces):
         unit_norm_vector_array = self.get_rotations(np.array(system.position_collection), np.array(system.director_collection), np.array(self.vertebra_nodes), self.vertebra_height_vector)
 
         # Computes the forces in each vertebra
-        self.force_data = self.compute_forces(self.tension, np.array(self.vertebra_nodes), unit_norm_vector_array)
+        self.force_data = self.compute_forces(self.tensions, np.array(self.vertebra_nodes), unit_norm_vector_array, self.segment_boundaries)
 
         # Creating the force data set to apply to the rod
         apply_force = np.zeros((3,self.n_elements+1))
@@ -161,19 +171,22 @@ class TendonForces(NoForces):
 
     @staticmethod
     @njit(cache=True)
-    def compute_forces(tension, vertebra_nodes, unit_norm_vector_array):
-
+    def compute_forces(tensions, vertebra_nodes, unit_norm_vector_array, segment_boundaries):
         # Creating array to store forces in vertebrae
         force_data = np.zeros((len(vertebra_nodes), 3), dtype=np.float64)
 
-        for i in range(len(vertebra_nodes)):
-            # This for loop multiplies the unit normed vectors calculated previously, with the tension of the tendon, thus creating the force vector for each vertebra
-            # Contiguous array to increase speed in njit decorator
-            force_current_prev = unit_norm_vector_array[i] * -tension
-            force_current_next = unit_norm_vector_array[i+1] * tension
-
-            # Summing the components of both force vectors to get the final force vector, which is then stored for use in the apply_forces and compute_torques methods
-            force_data[i] = force_current_prev + force_current_next
+        # Process each segment with its corresponding tension
+        for segment_idx, (start_idx, end_idx) in enumerate(segment_boundaries):
+            tension = tensions[segment_idx]
+            
+            # For each vertebra from this segment onwards
+            for i in range(0, end_idx):
+                # Calculate forces from previous and next segments
+                force_current_prev = unit_norm_vector_array[i] * -tension
+                force_current_next = unit_norm_vector_array[i+1] * tension
+                
+                # Add the forces to the existing forces at this vertebra
+                force_data[i] += force_current_prev + force_current_next
 
         return force_data
 
