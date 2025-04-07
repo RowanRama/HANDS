@@ -181,8 +181,8 @@ class Environment(gymnasium.Env):
         #         n_elements=n_elem
         #     )
         for direction in directions: #1 force for each direction
-            self.simulator.add_forcing_to(self.shearable_rod).using(
-                TendonForces,vertebra_height=vertebra_height,
+            tendon_force = TendonForces(
+                vertebra_height=vertebra_height,
                 num_vertebrae=num_vertebrae,
                 first_vertebra_node=2,
                 final_vertebra_node=n_elem-2,
@@ -191,6 +191,8 @@ class Environment(gymnasium.Env):
                 vertebra_height_orientation=direction,
                 n_elements=n_elem
             )
+            self.simulator.add_forcing_to(self.shearable_rod).using(tendon_force)
+            self.tendon_forces.append(tendon_force)
         print("added tendon forces")
             # print("tendon force is a", type(tendon_force_class))
             # self.simulator.add_forcing_to(self.shearable_rod).using(tendon_force_class)
