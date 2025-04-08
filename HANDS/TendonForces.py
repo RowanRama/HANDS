@@ -86,12 +86,13 @@ class TendonForces(NoForces):
     def apply_forces(self, system: SystemType, time: np.float64 = 0.0):
         # The application of the force data is done outside of the @njit decorated function because self.force_data needs to be referenced in self.compute_torques()
 
-        latest_tensions = self.tensions(time)
-        # print(f"Latest tensions: {latest_tensions}")
         if self.tendon_id >= len(latest_tensions):
             raise ValueError(
                 f"Tendon ID {self.tendon_id} is out of bounds for the tension function array of length {len(latest_tensions)}."
             )
+
+        latest_tensions = self.tensions(time)
+        # print(f"Latest tensions: {latest_tensions}")
             
         # print(f"New tension being applied is {latest_tensions[self.tendon_id]} which is equal to {self.cached_tension}")
         
