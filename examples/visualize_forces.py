@@ -45,14 +45,14 @@ CantileverRod = CantileverRodSimulator()
 
 # Simulation parameters
 final_time = 2.0
-time_step = 1.8e-5
+time_step = 1.9e-5
 total_steps = int(final_time / time_step)
 rendering_fps = 30.0
 step_skip = int(1.0 / (rendering_fps * time_step))
 
 # Create rod
-direction = np.array([1.0, 0.0, 0.0])
-normal = np.array([0.0, 0.0, 1.0])
+direction = np.array([0.0, 0.0, 1.0])
+normal = np.array([1.0, 0.0, 0.0])
 base_length = 0.25
 n_elements = 100
 youngs_modulus=16.598637e6
@@ -108,6 +108,7 @@ CantileverRod.constrain(rod1).using(
 #     vertebra_height_orientation = np.array([1.0, 0.0, 0.0]), # Orientation in the local frame (X Y Z)
 #     n_elements = n_elements
 # )
+tensions = np.array([3.0])  # Create a function that returns a constant array with single value
 
 CantileverRod.add_forcing_to(rod1).using(
     TendonForces,
@@ -116,18 +117,19 @@ CantileverRod.add_forcing_to(rod1).using(
     first_vertebra_node = 2,
     final_vertebra_node = 98,
     vertebra_mass = 0.002,
-    tensions = 10.0,
-    vertebra_height_orientation = np.array([0.0, 1.0, 0.0]), # Orientation in the local frame (X Y Z)
+    tendon_id = 0,
+    tension_func_array = tensions,
+    vertebra_height_orientation = np.array([0.0, -1.0, 0.0]), # Orientation in the local frame (X Y Z)
     n_elements = n_elements
 )
 
-# gravity_magnitude = -9.80665 #Value in m^2/s for gravity in simulation
-# acc_gravity = np.zeros(3)
-# acc_gravity[2] = gravity_magnitude
-# CantileverRod.add_forcing_to(rod1).using(
-#     GravityForces,
-#     acc_gravity = acc_gravity
-# )
+gravity_magnitude = -9.80665 #Value in m^2/s for gravity in simulation
+acc_gravity = np.zeros(3)
+acc_gravity[2] = gravity_magnitude
+CantileverRod.add_forcing_to(rod1).using(
+    GravityForces,
+    acc_gravity = acc_gravity
+)
 
 
 CantileverRod.dampen(rod1).using(
@@ -277,9 +279,9 @@ ax.set_zlabel('Z Axis')
 
 # Scatter plot for rod position
 ax.scatter(position_data[-1][0], position_data[-1][1], position_data[-1][2])
-ax.axes.set_zlim3d(bottom=-base_length,top=base_length)
+ax.axes.set_zlim3d(bottom=0,top=base_length)
 ax.axes.set_ylim3d(bottom=-base_length,top=base_length)
-ax.axes.set_xlim(-0.01,base_length)
+ax.axes.set_xlim(-base_length,base_length)
 
 # Get forces from the last timestep
 forces = rod1.internal_forces

@@ -17,8 +17,10 @@ class TendonForces(NoForces):
             Amount of vertebrae to be used in the system.
         vertebra_height_vector: numpy.ndarray
             1D (dim) numpy array. Describes the orientation and height in space of the vertebrae in the system.
-        tension: float
-            Tension applied to the tendon in the system.
+        tendon_id: int
+            ID of the tendon in the system. This is used to identify which tendon is being referenced in tension_func_array.
+        tension_func_array: numpy.ndarray
+            1D (dim) numpy array. Contains the tension values for each of the tendons in the system.
         n_elements: int
             Total amount of nodes in the rod system. This value is set in the simulator and is copied to this class for later use.
         vertebra_weight_vector: numpy.ndarray
@@ -32,7 +34,7 @@ class TendonForces(NoForces):
 
     """
 
-    def __init__(self, vertebra_height, num_vertebrae, first_vertebra_node, final_vertebra_node, vertebra_mass, tension, vertebra_height_orientation, n_elements):
+    def __init__(self, vertebra_height, num_vertebrae, first_vertebra_node, final_vertebra_node, vertebra_mass, tendon_id, tension_func_array, vertebra_height_orientation, n_elements):
         """
 
         Parameters 
@@ -47,8 +49,10 @@ class TendonForces(NoForces):
             The last node to have a vertebra, from the base of the rod to the tip.
         vertebra_mass: float
             Total mass of a single vertebra.
-        tension: float
-            Tension applied to the tendon in the system.
+        tendon_id: int
+            ID of the tendon in the system. This is used to identify which tendon is being referenced in tension_func_array.
+        tension_func_array: np.ndarray
+            1D (dim) numpy array. Contains the tension values for each of the tendons in the system.
         vertebra_height_orientation: numpy.ndarray
             1D (dim) numpy array. Describes the orientatation of the vertebrae in the system.
         n_elements: int
@@ -60,9 +64,16 @@ class TendonForces(NoForces):
         self.vertebra_height = vertebra_height
         self.num_vertebrae = num_vertebrae
         self.vertebra_height_vector = vertebra_height_orientation * vertebra_height
-        self.tension = tension
+        self.tendon_id = tendon_id
+        self.cached_tension = tension_func_array[tendon_id]
         self.n_elements = n_elements
         self.vertebra_weight_vector = np.array([0.0, 0.0, -vertebra_mass * 9.80665])
+
+        self.tensions = (
+            tension_func_array
+            if hasattr(tension_func_array, "__call__")
+            else lambda time_v: tension_func_array
+        )
 
         # Creating vector containing the node numbers with the vertebras for this instance of TendonForces
         self.vertebra_nodes = []
@@ -70,14 +81,30 @@ class TendonForces(NoForces):
         for i in range(num_vertebrae):
             self.vertebra_nodes.append(round(i * vertebra_increment + first_vertebra_node))
 
+        self.initial_force_flag = 0
+
     def apply_forces(self, system: SystemType, time: np.float64 = 0.0):
         # The application of the force data is done outside of the @njit decorated function because self.force_data needs to be referenced in self.compute_torques()
+
+        latest_tensions = self.tensions(time)
+        # print(f"Latest tensions: {latest_tensions}")
+        if self.tendon_id >= len(latest_tensions):
+            raise ValueError(
+                f"Tendon ID {self.tendon_id} is out of bounds for the tension function array of length {len(latest_tensions)}."
+            )
+            
+        # print(f"New tension being applied is {latest_tensions[self.tendon_id]} which is equal to {self.cached_tension}")
+        
+        self.initial_force_flag = 1
+        # Updating the cached tension value
+        self.cached_tension = latest_tensions[self.tendon_id]
 
         # Retrieves relative position unit norm vectors between each vertebra top (where the tendon contacts the vertebra)
         unit_norm_vector_array = self.get_rotations(np.array(system.position_collection), np.array(system.director_collection), np.array(self.vertebra_nodes), self.vertebra_height_vector)
 
         # Computes the forces in each vertebra
-        self.force_data = self.compute_forces(self.tension, np.array(self.vertebra_nodes), unit_norm_vector_array)
+        self.force_data = self.compute_forces(self.cached_tension, np.array(self.vertebra_nodes), unit_norm_vector_array)
+
 
         # Creating the force data set to apply to the rod
         apply_force = np.zeros((3,self.n_elements+1))

@@ -4,7 +4,10 @@ from set_environment import Environment
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-dT = 1e-4
+dT = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
+# minimum timestep can be calculated using this:
+# dtmax = (base_length/n_elements) * np.sqrt(density / max(youngs_modulus, shear_modulus)) # Maximum size of time step
+
 def tension_function(t):
     """
     Example tension function that returns a tension value based on time.
@@ -12,16 +15,15 @@ def tension_function(t):
     
     Returns a tension value for the four tendons (assuming 4 tendons in this example).
     """
-    tension1 = 0.1*(1-np.cos(t*0.2))  # Tension for tendon 1
+    tension1 = 2.0 * (1 - np.cos(t*0.2))  # Tension for tendon 1, now oscillates between 0 and 4
     tension2 = 0  # Tension for tendon 2
     tension3 = 0
     tension4 = 0
-    # return np.ones(4) * 0.0 # Return zero for all tendons if you want to keep them slack, otherwise return the tensions defined above.
     return np.array([tension1, tension2, tension3, tension4])  # Return tensions for all tendons
     
 def test_environment():
-    env = Environment(n_elem=50, mode=1, target_position=np.array([0.05, 0.05, 0.05]), time_step=dT, gravity_enable=False)
-    #state = env.reset() #initializes with params
+    env = Environment(n_elem=50, mode=1, target_position=np.array([0.5, 0.5, 0.5]), sim_dt=dT, gravity_enable=False)
+    state = env.reset() #initializes with params
 
     num_steps = 50000
     outputs = []  # Store the outputs for each step
@@ -100,6 +102,8 @@ def plot_results(outputs):
     # Plot the backbone of the Cosserat rod using points_bb for the first and final position in two subplots
     fig = plt.figure(figsize=(12, 6))
 
+    base_length = 0.25 # Assuming the base length of the rod is 0.25 m
+
     # First position
     ax1 = fig.add_subplot(121, projection='3d')
     first_points_bb = outputs[0]['points_bb']  # Extract the position_collection for the first step
@@ -108,6 +112,9 @@ def plot_results(outputs):
     ax1.set_xlabel('X Position')
     ax1.set_ylabel('Y Position')
     ax1.set_zlabel('Z Position')
+    ax1.axes.set_zlim3d(bottom=0,top=base_length)
+    ax1.axes.set_ylim3d(bottom=-base_length,top=base_length)
+    ax1.axes.set_xlim(-base_length,base_length)
     ax1.grid()
 
     # Final position
@@ -118,6 +125,9 @@ def plot_results(outputs):
     ax2.set_xlabel('X Position')
     ax2.set_ylabel('Y Position')
     ax2.set_zlabel('Z Position')
+    ax2.axes.set_zlim3d(bottom=0,top=base_length)
+    ax2.axes.set_ylim3d(bottom=-base_length,top=base_length)
+    ax2.axes.set_xlim(-base_length,base_length)
     ax2.grid()
 
     plt.tight_layout()
