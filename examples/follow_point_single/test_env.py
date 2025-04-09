@@ -20,7 +20,23 @@ def tension_function(t):
     tension3 = 0
     tension4 = 0
     # print(f"Tension at time {t}: {tension1}, {tension2}, {tension3}, {tension4}")
-    return np.array([tension1, tension2, tension3, tension4])  # Return tensions for all tendons
+    
+    tension1 = np.sin(t*np.pi)  # Tension for tendon 1, now oscillates between 0 and 15
+    tension2 = np.cos(t*np.pi/2)  # Tension for tendon 2, now oscillates between 0 and 15
+    tension3 = (1-np.sin(t*np.pi))  # Tension for tendon 3, now oscillates between 0 and 15
+    tension4 = (1-np.cos(t*np.pi/2))  # Tension for tendon 4, now oscillates between 0 and 15
+    
+    # Apply tensions to each tendon one by one. For 0 to 2 seconds, keep tension1 active, then switch to tension2, and so on.
+    tension = np.zeros(4)
+    if t < 2:
+        tension[0] = -2*np.sin(t*np.pi)  # Tension for tendon 1
+    elif t < 4:
+        tension[1] = 2*np.sin(t*np.pi)  # Tension for tendon 2
+    elif t < 6:
+        tension[2] = 2*np.sin(t*np.pi)
+    elif t < 8:
+        tension[3] = 2*np.sin(t*np.pi)
+    return tension#*np.tanh(t*5)  # Return tensions for all tendons
     
 def test_environment():
     env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
@@ -160,6 +176,6 @@ if __name__ == "__main__":
     plot_results(outputs)
     # save outputs to pickle file
     
-    with open('outputs.pkl', 'wb') as f:
+    with open('outputs2.pkl', 'wb') as f:
         pickle.dump(outputs, f)
         

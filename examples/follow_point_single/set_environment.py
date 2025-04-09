@@ -384,24 +384,31 @@ class Environment(gymnasium.Env):
 
         rod_compact_velocity = self.shearable_rod.velocity_collection[..., -1]
         rod_compact_velocity_norm = np.array([np.linalg.norm(rod_compact_velocity)])
-        rod_compact_velocity_dir = np.where(
-            (rod_compact_velocity_norm != 0) or (np.isnan(rod_compact_velocity_norm).any()),
-            rod_compact_velocity / rod_compact_velocity_norm,
-            0.0,
-        )
+        # rod_compact_velocity_dir = np.where(
+        #     (rod_compact_velocity_norm != 0) or (np.isnan(rod_compact_velocity_norm).any()),
+        #     rod_compact_velocity / rod_compact_velocity_norm,
+        #     0.0,
+        # )
 
         sphere_compact_state = self.sphere.position_collection.flatten()  # 2
         sphere_compact_velocity = self.sphere.velocity_collection.flatten()
         sphere_compact_velocity_norm = np.array(
             [np.linalg.norm(sphere_compact_velocity)]
         )
-        sphere_compact_velocity_dir = np.where(
-            (sphere_compact_velocity_norm != 0) or (np.isnan(sphere_compact_velocity_norm).any()),
-            sphere_compact_velocity / sphere_compact_velocity_norm,
-            0.0,
-        )
-        
-
+        # sphere_compact_velocity_dir = np.where(
+        #     (sphere_compact_velocity_norm != 0) or (np.isnan(sphere_compact_velocity_norm).any()),
+        #     sphere_compact_velocity / sphere_compact_velocity_norm,
+        #     0.0,
+        # )
+        if rod_compact_velocity_norm == 0 or np.isnan(rod_compact_velocity_norm):
+            rod_compact_velocity_dir = np.zeros_like(rod_compact_velocity)
+        else:
+            rod_compact_velocity_dir = rod_compact_velocity / rod_compact_velocity_norm
+            
+        if sphere_compact_velocity_norm == 0 or np.isnan(sphere_compact_velocity_norm):
+            sphere_compact_velocity_dir = np.zeros_like(sphere_compact_velocity)
+        else:
+            sphere_compact_velocity_dir = sphere_compact_velocity / sphere_compact_velocity_norm
         state = np.concatenate(
             (
                 # rod information
@@ -437,11 +444,13 @@ class Environment(gymnasium.Env):
         info : dict
             Additional information
         """
-
+        action = np.clip(action, 0.0, self.max_tension)
         self.action = action
         
         # Update tendon forces
+        # if the tension value is negative, clip to 0
         self.tensions[:] = self.action[:]
+        
         
         # Simulate for num_steps_per_update steps
         for _ in range(self.num_steps_per_update):
