@@ -385,7 +385,7 @@ class Environment(gymnasium.Env):
         rod_compact_velocity = self.shearable_rod.velocity_collection[..., -1]
         rod_compact_velocity_norm = np.array([np.linalg.norm(rod_compact_velocity)])
         rod_compact_velocity_dir = np.where(
-            rod_compact_velocity_norm != 0,
+            (rod_compact_velocity_norm != 0) or (np.isnan(rod_compact_velocity_norm).any()),
             rod_compact_velocity / rod_compact_velocity_norm,
             0.0,
         )
@@ -396,10 +396,11 @@ class Environment(gymnasium.Env):
             [np.linalg.norm(sphere_compact_velocity)]
         )
         sphere_compact_velocity_dir = np.where(
-            sphere_compact_velocity_norm != 0,
+            (sphere_compact_velocity_norm != 0) or (np.isnan(sphere_compact_velocity_norm).any()),
             sphere_compact_velocity / sphere_compact_velocity_norm,
             0.0,
         )
+        
 
         state = np.concatenate(
             (

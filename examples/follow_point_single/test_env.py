@@ -4,10 +4,10 @@ from set_environment import Environment
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-dT = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
+# dT = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
 # minimum timestep can be calculated using this:
 # dtmax = (base_length/n_elements) * np.sqrt(density / max(youngs_modulus, shear_modulus)) # Maximum size of time step
-
+import pickle
 def tension_function(t):
     """
     Example tension function that returns a tension value based on time.
@@ -15,22 +15,25 @@ def tension_function(t):
     
     Returns a tension value for the four tendons (assuming 4 tendons in this example).
     """
-    tension1 = 2.0 * (1 - np.cos(t*0.2))  # Tension for tendon 1, now oscillates between 0 and 4
+    tension1 = 15.0 * (1 - np.cos(t*0.2))  # Tension for tendon 1, now oscillates between 0 and 4
     tension2 = 0  # Tension for tendon 2
     tension3 = 0
     tension4 = 0
+    # print(f"Tension at time {t}: {tension1}, {tension2}, {tension3}, {tension4}")
     return np.array([tension1, tension2, tension3, tension4])  # Return tensions for all tendons
     
 def test_environment():
-    env = Environment(n_elem=50, mode=1, target_position=np.array([0.5, 0.5, 0.5]), sim_dt=dT, gravity_enable=False)
+    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
+    dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
+    
     state = env.reset() #initializes with params
 
-    num_steps = 50000
+    num_steps = env.total_learning_steps
     outputs = []  # Store the outputs for each step
     
     for step in tqdm(range(num_steps)):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
-        action = tension_function(step * dT)  # Use the tension function to get the action for this step
+        action = tension_function(step * dT_L)  # Use the tension function to get the action for this step
         state, reward, done, additional_info = env.step(action)  # Take a step in the environment
         
         # print(f"Step {step}: Reward = {reward}, State = {state}")
@@ -40,14 +43,16 @@ def test_environment():
             "state": state,
             "reward": reward,
             "done": done,
-            "points_bb": additional_info["position"]
+            "points_bb": additional_info["position"],
+            "time": step * dT_L,
+            "tensions": action
         }
         outputs.append(step_data)
         if done:
             print("Episode finished")
             break
         
-    print(outputs)
+    #print(outputs)
     return outputs  # Return the collected outputs for plotting or further analysis
 
 def plot_results(outputs):
@@ -153,3 +158,8 @@ if __name__ == "__main__":
     outputs = test_environment()
     print("tested")
     plot_results(outputs)
+    # save outputs to pickle file
+    
+    with open('outputs.pkl', 'wb') as f:
+        pickle.dump(outputs, f)
+        
