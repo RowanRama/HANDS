@@ -1,3 +1,9 @@
+''
+# This script generates a GIF animation of the backbone points for each instant
+# and plots the trajectory of the endpoint of the backbone and the tension values over time.
+# It uses the outputs from a simulation stored in a pickle file.
+# The GIF shows two views: a 3D view and a top-down view (-z axis).
+''
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -12,11 +18,14 @@ def load_outputs(file_path):
         outputs = pickle.load(f)
     return outputs
 
-def create_gif(outputs, gif_path="backbone_animation.gif"):
+def create_gif(outputs, gif_path="backbone_animation_follow_sphere.gif"):
     """
     Create a GIF of the backbone points for each instant with two views.
     """
     simulation_duration = outputs[-1]['time']
+
+    
+
     # Extract the backbone points for each step
     backbone_points = [data['points_bb'] for data in outputs]
     # Extract the time stamps for the frames
@@ -29,16 +38,21 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     # Sample frames to match the desired duration
     frame_indices = np.linspace(0, len(backbone_points) - 1, total_frames, dtype=int)
     backbone_points = [backbone_points[i] for i in frame_indices]
+    sphere_positions = [data['sphere_position'][:, 0] for data in outputs] # sphere is a rigid body with one node at index 0.
+    sphere_positions = [sphere_positions[i] for i in frame_indices]
     time_stamps = [time_stamps[i] for i in frame_indices]
+
+    print("SPHERE POSITIONS", sphere_positions)
 
     # Set up the figure and 3D axes
     fig = plt.figure(figsize=(12, 6))
 
     # First subplot: 3D view
     ax1 = fig.add_subplot(121, projection='3d')
-    ax1.set_xlim([-0.25, 0.25])
-    ax1.set_ylim([-0.25, 0.25])
-    ax1.set_zlim([0, 0.25])
+
+    ax1.set_xlim([-0.4, 0.4])
+    ax1.set_ylim([-0.4, 0.4])
+    ax1.set_zlim([0, 0.4])
     ax1.set_xlabel('X Position')
     ax1.set_ylabel('Y Position')
     ax1.set_zlabel('Z Position')
@@ -55,6 +69,8 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     # Initialize the line objects
     line1, = ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)
     line2, = ax2.plot([], [], marker='o', linestyle='-', alpha=0.7)
+    sphere_plot = ax1.scatter([], [], [], color='red', s=50, label="Sphere")
+
 
     def update(frame):
         """
@@ -71,10 +87,16 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
         line2.set_data(points[0, :], points[1, :])
         ax2.set_title(f"Top-Down View - Time: {time_stamps[frame]:.2f} s")
 
-        return line1, line2
+        #update sphere position
+        sphere_pos = sphere_positions[frame]
+        sphere_plot._offsets3d = ([sphere_pos[0]], [sphere_pos[1]], [sphere_pos[2]])
+
+
+        return line1, line2, sphere_plot
 
     # Create the animation
-    ani = FuncAnimation(fig, update, frames=len(backbone_points), interval=1000 / fps, blit=True)
+    ani = FuncAnimation(fig, update, frames=len(backbone_points), interval=1000 / fps, blit=False)
+  
 
     # Save the animation as a GIF
     ani.save(gif_path, writer='imagemagick', fps=fps)
@@ -82,24 +104,31 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
 
 def plot_trajectory_and_tensions(outputs):
     """
-    Plot the trajectory of the endpoint of the backbone and the tension values over time.
+    Plot the trajectory of the endpoint of the backbone and the target sphere,
+    along with tension values over time.
     """
     # Extract the endpoint trajectory
     end_points = [data['points_bb'][:, -1] for data in outputs]  # Last point in the backbone
-    end_points = np.array(end_points)  # Convert to NumPy array for easier manipulation
+    end_points = np.array(end_points)
+
+    # Extract the sphere trajectory
+    sphere_points = [data['sphere_position'][:, 0] for data in outputs]  # Only node 0
+    sphere_points = np.array(sphere_points)
 
     # Extract time and tension values
     time_stamps = [data['time'] for data in outputs]
     tensions = [data['tensions'] for data in outputs]
-    tensions = np.array(tensions)  # Convert to NumPy array
+    tensions = np.array(tensions)
 
     # Create the figure and subplots
     fig, axes = plt.subplots(2, 1, figsize=(10, 10))
 
-    # Plot the trajectory of the endpoint
+    # Plot the trajectory of the endpoint and sphere
+    print(sphere_points)
     ax1 = axes[0]
-    ax1.plot(end_points[:, 0], end_points[:, 1], label="Trajectory (XY Plane)", marker='o', linestyle='-')
-    ax1.set_title("Trajectory of the Endpoint of the Backbone")
+    ax1.plot(end_points[:, 0], end_points[:, 1], label="Rod Tip Trajectory", marker='o', linestyle='-')
+    ax1.plot(sphere_points[:, 0], sphere_points[:, 1], label="Sphere Trajectory", marker='x', linestyle='--', alpha=0.7)
+    ax1.set_title("XY Trajectory: Rod Tip vs Sphere")
     ax1.set_xlabel("X Position")
     ax1.set_ylabel("Y Position")
     ax1.grid()
@@ -120,7 +149,7 @@ def plot_trajectory_and_tensions(outputs):
 
 if __name__ == "__main__":
     # Load the outputs from the pickle file
-    outputs = load_outputs("outputs2.pkl")
+    outputs = load_outputs("test_sphere.pkl")
 
     # Create and save the GIF
     create_gif(outputs)

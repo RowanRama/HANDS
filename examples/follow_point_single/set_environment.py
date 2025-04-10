@@ -78,13 +78,13 @@ class Environment(gymnasium.Env):
         final_time=1.0,
         sim_dt=1.5e-5,
         num_steps_per_update=100,
-        max_tension=10.0,
+        max_tension=5.0,
         num_vertebrae=10,
         vertebra_height=0.0105,
         vertebra_mass=0.002,
         mode=1,
         target_position=None,
-        sphere_initial_velocity=0.1,
+        sphere_initial_velocity=0.5,
         gravity_enable = True,  # Enable gravity by default
         COLLECT_DATA_FOR_POSTPROCESSING=False,
         *args,
@@ -168,9 +168,18 @@ class Environment(gymnasium.Env):
         )
 
         self.n_elem = n_elem
+        self.sphere = Sphere(
+            center=target_position,  # initialize target position of the ball
+            base_radius=0.05,
+            density=1000,
+        )
+    """Reset the environment to initial state."""
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed) #reqd for sb3
 
-    def reset(self):
-        """Reset the environment to initial state."""
+        if seed is not None:
+            np.random.seed(seed)
+        
         # Create simulator
         self.simulator = SoftRobotSimulator()
 
@@ -210,6 +219,11 @@ class Environment(gymnasium.Env):
         if self.mode != 2:
             # fixed target position to reach
             target_position = self.target_position
+        
+        if self.mode == 4:
+            self.trajectory_iteration = 0
+            self._update_random_target_velocity()  # give it initial motion
+
 
         # initialize sphere
         self.sphere = Sphere(
@@ -323,6 +337,7 @@ class Environment(gymnasium.Env):
                 step_skip=self.step_skip,
                 callback_params=self.post_processing_dict_rod,
             )
+            print("created sphere")
 
             self.post_processing_dict_sphere = defaultdict(list)
             # list which collected data will be append
@@ -354,8 +369,11 @@ class Environment(gymnasium.Env):
         # reset previous_action
         self.previous_action = None
 
+        
+
+
         # After resetting the environment return state information
-        return state
+        return state, {}
 
     def get_state(self):
         """
@@ -424,6 +442,15 @@ class Environment(gymnasium.Env):
 
         return state
 
+    def _update_random_target_velocity(self):
+        rand_direction = np.random.randn(3)
+        rand_direction /= np.linalg.norm(rand_direction)  # normalize
+        self.sphere.velocity_collection[..., 0] = rand_direction * self.sphere_initial_velocity
+        #d sphere velocity", self.sphere.velocity_collection[..., 0])
+        
+        
+
+
     def step(self, action):
         """
         Execute one step in the environment.
@@ -461,44 +488,61 @@ class Environment(gymnasium.Env):
                 self.time_tracker,
                 self.time_step,
             )
+          
 
-        # # Update target position based on mode
-        # if self.mode == 3:
-        #     if self.current_step % (1.0 / (self.time_step * self.num_steps_per_update)) == 0:
-        #         if self.dir_indicator == 1:
-        #             self.sphere.velocity_collection[..., 0] = np.array([0.0, -self.sphere_initial_velocity, 0.0])
-        #             self.dir_indicator = 2
-        #         elif self.dir_indicator == 2:
-        #             self.sphere.velocity_collection[..., 0] = np.array([-self.sphere_initial_velocity, 0.0, 0.0])
-        #             self.dir_indicator = 3
-        #         elif self.dir_indicator == 3:
-        #             self.sphere.velocity_collection[..., 0] = np.array([0.0, self.sphere_initial_velocity, 0.0])
-        #             self.dir_indicator = 4
-        #         elif self.dir_indicator == 4:
-        #             self.sphere.velocity_collection[..., 0] = np.array([self.sphere_initial_velocity, 0.0, 0.0])
-        #             self.dir_indicator = 1
 
-        # elif self.mode == 4:
-        #     self.trajectory_iteration += 1
-        #     if self.trajectory_iteration == 500:
-        #         self._update_random_target_velocity()
-        #         self.trajectory_iteration = 0
+        if self.mode == 4:
+            self.trajectory_iteration += 1
+            if self.trajectory_iteration == 500:
+                # print('changing direction')
+                self.rand_direction_1 = np.pi * np.random.uniform(0, 2)
+                # if self.dim == 2.0 or self.dim == 2.5:
+                #     self.rand_direction_2 = np.pi / 2.0
+               # elif self.dim == 3.0 or self.dim == 3.5:
+                self.rand_direction_2 = np.pi * np.random.uniform(0, 2)
+
+                self.v_x = (
+                    self.sphere_initial_velocity
+                    * np.cos(self.rand_direction_1)
+                    * np.sin(self.rand_direction_2)
+                )
+                self.v_y = (
+                    self.sphere_initial_velocity
+                    * np.sin(self.rand_direction_1)
+                    * np.sin(self.rand_direction_2)
+                )
+                self.v_z = self.sphere_initial_velocity * np.cos(self.rand_direction_2)
+
+                self.sphere.velocity_collection[..., 0] = [
+                    self.v_x,
+                    self.v_y,
+                    self.v_z,
+                ]
+                self.trajectory_iteration = 0
         
         self.current_step += 1
+        
+
+        
 
         # Get current state
         state = self.get_state()
         
         # print(self.shearable_rod.position_collection[..., -1])
         dist = np.linalg.norm(
-            self.shearable_rod.position_collection[..., -1]
-            - self.sphere.position_collection[..., 0]
-        )
+            self.shearable_rod.position_collection[..., -1] #position of last node
+            - self.sphere.position_collection[..., 0] #position of center of sphere
+        ) #use to specify goal
 
         # Reward engineering
         reward_dist = -np.square(dist).sum()
 
+
+       # reward_dist = dist
+
         reward = 1.0 * reward_dist
+        if self.current_step % 100 == 0:
+            print(f"[Step {self.current_step}] Distance to target: {dist:.4f}")
         """ Done is a boolean to reset the environment before episode is completed """
         done = False
 
@@ -514,7 +558,7 @@ class Environment(gymnasium.Env):
             state = self.get_state()
             done = True
 
-        if np.isclose(dist, 0.0, atol=0.05 * 2.0).all():
+        if np.isclose(dist, 0.0, atol=0.05 * 3.0).all():
             self.on_goal += self.time_step
             reward += 0.5
         # for this specific case, check on_goal parameter
@@ -540,13 +584,26 @@ class Environment(gymnasium.Env):
         """ Done is a boolean to reset the environment before episode is completed """
 
         self.previous_action = action
+        truncated = False
 
-        return state, reward, done, {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy()}
+        terminated = done  # based on your existing logic
+        truncated = False  # unless you implement time limits manually
+
+        # print("Action:", action)
+        # print("Tensions:", self.tensions)
+
+
+        return state, reward, terminated, truncated, {
+            "time": self.time_tracker,
+            "position": self.shearable_rod.position_collection.copy()
+        }
+    
+
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
         pass
-
+    '''
     def post_processing(self, filename_video, SAVE_DATA=False, **kwargs):
         """Post processing after simulation (not implemented)."""
         if self.COLLECT_DATA_FOR_POSTPROCESSING:
@@ -596,6 +653,7 @@ class Environment(gymnasium.Env):
                 "call back function is not called anytime during simulation, "
                 "change COLLECT_DATA=True"
             )
+    '''
 
 
     def sampleAction(self):
@@ -609,4 +667,5 @@ class Environment(gymnasium.Env):
             Represents random tension values for each cardinal direction.
         """
         random_action = (np.random.rand(4)) * self.max_tension
+        print("random actin:, ", random_action)
         return random_action

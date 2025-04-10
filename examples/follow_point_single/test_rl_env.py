@@ -38,13 +38,15 @@ def tension_function(t):
         tension[3] = 2*np.sin(t*np.pi)
     return tension#*np.tanh(t*5)  # Return tensions for all tendons
     
-def test_environment():
+def test_rl_env():
     #create an env to test things out
     #the target position is FIXED here
-    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
+    env = Environment(n_elem=50, mode=4, final_time= 2, target_position=np.array([0.3, 0.3, 0.3]), gravity_enable=False, COLLECT_DATA_FOR_POSTPROCESSING=True)
+   
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
+    #env.post_processing("test_sphere.mp4", SAVE_DATA=False)
 
     num_steps = env.total_learning_steps
     outputs = []  # Store the outputs for each step
@@ -52,9 +54,7 @@ def test_environment():
     for step in tqdm(range(num_steps)):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
         action = tension_function(step * dT_L)  # Use the tension function to get the action for this step
-        state, reward, done, additional_info = env.step(action)  # Take a step in the environment
-        env.post_processing("tracking_video.mp4", SAVE_DATA=False)
-
+        state, reward, done, truncated, additional_info,  = env.step(action)  # Take a step in the environment
         
         # print(f"Step {step}: Reward = {reward}, State = {state}")
         step_data = {
@@ -65,7 +65,8 @@ def test_environment():
             "done": done,
             "points_bb": additional_info["position"],
             "time": step * dT_L,
-            "tensions": action
+            "tensions": action,
+            "sphere_position": env.sphere.position_collection.copy()
         }
         outputs.append(step_data)
         if done:
@@ -93,16 +94,16 @@ def plot_results(outputs):
     rewards = [data['reward'] for data in outputs]
     actions = [(data['action']) for data in outputs]
     states = [np.array(data['state']) for data in outputs]
-    plt.figure(figsize=(10, 5))
-    for i in range(4):  # Assuming there are 4 tendons
-        tendon_tensions = [action[i] for action in actions]
-        plt.plot(steps, tendon_tensions, marker='o', linestyle='-', label=f'Tendon {i+1}')
-    plt.title('Tendon Tensions over Steps')
-    plt.xlabel('Step')
-    plt.ylabel('Tension')
-    plt.legend()
-    plt.grid()
-    plt.show()
+    # plt.figure(figsize=(10, 5))
+    # for i in range(4):  # Assuming there are 4 tendons
+    #     tendon_tensions = [action[i] for action in actions]
+    #     plt.plot(steps, tendon_tensions, marker='o', linestyle='-', label=f'Tendon {i+1}')
+    # plt.title('Tendon Tensions over Steps')
+    # plt.xlabel('Step')
+    # plt.ylabel('Tension')
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
     # # Extract the 3D positions from the states
     # positions = [state[:3] for state in states]  # Assuming the first three entries are the 3D positions
     # positions = np.array(positions)  # Convert to a NumPy array for easier manipulation
@@ -175,11 +176,12 @@ def plot_results(outputs):
     # plt.show()
     
 if __name__ == "__main__":
-    outputs = test_environment()
+    outputs = test_rl_env()
+    #outputs.post_processing("test_sphere.mp4", SAVE_DATA=False)
     print("tested")
     plot_results(outputs)
     # save outputs to pickle file -- later used in gen_gif
     
-    with open('outputs2.pkl', 'wb') as f:
+    with open('test_sphere.pkl', 'wb') as f:
         pickle.dump(outputs, f)
         
