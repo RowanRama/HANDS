@@ -34,15 +34,23 @@ def create_gif(outputs, gif_path="backbone_animation_follow_sphere.gif"):
     # Calculate the total number of frames for the GIF
     fps = 10  # Frames per second for the GIF
     total_frames = int(simulation_duration * fps)
+    end_points = [data['points_bb'][:, -1] for data in outputs]  # Last point in the backbone
+    end_points = np.array(end_points)
 
     # Sample frames to match the desired duration
     frame_indices = np.linspace(0, len(backbone_points) - 1, total_frames, dtype=int)
-    backbone_points = [backbone_points[i] for i in frame_indices]
-    sphere_positions = [data['sphere_position'][:, 0] for data in outputs] # sphere is a rigid body with one node at index 0.
-    sphere_positions = [sphere_positions[i] for i in frame_indices]
+    backbone_points = [backbone_points[i] for i in frame_indices] #3xn matrix, xyz for each point
+    if "sphere_position" not in outputs[0]:
+        print("Warning: 'sphere_position' not found in outputs.")
+        sphere_points = np.zeros_like(end_points)  # just use dummy placeholder
+    else:
+        sphere_points = [data['sphere_position'][:, 0] for data in outputs]  # Only node 0
+        sphere_points = np.array(sphere_points)
+    # sphere_positions = [data['sphere_position'][:, 0] for data in outputs] # sphere is a rigid body with one node at index 0.
+    sphere_positions = [sphere_points[i] for i in frame_indices]
     time_stamps = [time_stamps[i] for i in frame_indices]
 
-    print("SPHERE POSITIONS", sphere_positions)
+    #print("backbone POSITIONS", backbone_points)
 
     # Set up the figure and 3D axes
     fig = plt.figure(figsize=(12, 6))
@@ -50,9 +58,9 @@ def create_gif(outputs, gif_path="backbone_animation_follow_sphere.gif"):
     # First subplot: 3D view
     ax1 = fig.add_subplot(121, projection='3d')
 
-    ax1.set_xlim([-0.4, 0.4])
-    ax1.set_ylim([-0.4, 0.4])
-    ax1.set_zlim([0, 0.4])
+    ax1.set_xlim([-0.9, 0.9])
+    ax1.set_ylim([-0.9, 0.9])
+    ax1.set_zlim([0, 0.9])
     ax1.set_xlabel('X Position')
     ax1.set_ylabel('Y Position')
     ax1.set_zlabel('Z Position')
@@ -60,8 +68,8 @@ def create_gif(outputs, gif_path="backbone_animation_follow_sphere.gif"):
 
     # Second subplot: Top-down view (-z axis)
     ax2 = fig.add_subplot(122)
-    ax2.set_xlim([-0.25, 0.25])
-    ax2.set_ylim([-0.25, 0.25])
+    ax2.set_xlim([-0.9, 0.9])
+    ax2.set_ylim([-0.9, 0.9])
     ax2.set_xlabel('X Position')
     ax2.set_ylabel('Y Position')
     ax2.set_title('Top-Down View (-Z Axis)')
@@ -110,10 +118,12 @@ def plot_trajectory_and_tensions(outputs):
     # Extract the endpoint trajectory
     end_points = [data['points_bb'][:, -1] for data in outputs]  # Last point in the backbone
     end_points = np.array(end_points)
-
-    # Extract the sphere trajectory
-    sphere_points = [data['sphere_position'][:, 0] for data in outputs]  # Only node 0
-    sphere_points = np.array(sphere_points)
+    if "sphere_position" not in outputs[0]:
+        print("Warning: 'sphere_position' not found in outputs.")
+        sphere_points = np.zeros_like(end_points)  # just use dummy placeholder
+    else:
+        sphere_points = [data['sphere_position'][:, 0] for data in outputs]  # Only node 0
+        sphere_points = np.array(sphere_points)
 
     # Extract time and tension values
     time_stamps = [data['time'] for data in outputs]
@@ -124,7 +134,11 @@ def plot_trajectory_and_tensions(outputs):
     fig, axes = plt.subplots(2, 1, figsize=(10, 10))
 
     # Plot the trajectory of the endpoint and sphere
-    print(sphere_points)
+    #print(sphere_points)
+    for i, data in enumerate(outputs[:10]):
+        print(f"Step {i}: tensions = {data['tensions']}, tip = {data['points_bb'][:, -1]}") #only moving in z
+    
+
     ax1 = axes[0]
     ax1.plot(end_points[:, 0], end_points[:, 1], label="Rod Tip Trajectory", marker='o', linestyle='-')
     ax1.plot(sphere_points[:, 0], sphere_points[:, 1], label="Sphere Trajectory", marker='x', linestyle='--', alpha=0.7)
@@ -147,9 +161,19 @@ def plot_trajectory_and_tensions(outputs):
     plt.tight_layout()
     plt.show()
 
+    tip_positions = [data['points_bb'][:, -1] for data in outputs]
+    tip_positions = np.array(tip_positions)
+    plt.plot(tip_positions[:, 0], tip_positions[:, 1])  # XY trajectory
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.title("Rod Tip Trajectory (XY)")
+    plt.grid()
+    plt.show()
+
+
 if __name__ == "__main__":
     # Load the outputs from the pickle file
-    outputs = load_outputs("test_sphere.pkl")
+    outputs = load_outputs("ppo_case1_rollout.pkl")
 
     # Create and save the GIF
     create_gif(outputs)

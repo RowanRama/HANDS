@@ -41,7 +41,7 @@ def tension_function(t):
 def test_environment():
     #create an env to test things out
     #the target position is FIXED here
-    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
+    env = Environment(n_elem=50, mode=1, final_time= 8, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
@@ -52,8 +52,8 @@ def test_environment():
     for step in tqdm(range(num_steps)):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
         action = tension_function(step * dT_L)  # Use the tension function to get the action for this step
-        state, reward, done, additional_info = env.step(action)  # Take a step in the environment
-        env.post_processing("tracking_video.mp4", SAVE_DATA=False)
+        state, reward, done, truncated, additional_info = env.step(action)  # Take a step in the environment
+        #env.post_processing("tracking_video.mp4", SAVE_DATA=False)
 
         
         # print(f"Step {step}: Reward = {reward}, State = {state}")

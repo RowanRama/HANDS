@@ -75,16 +75,16 @@ class Environment(gymnasium.Env):
     def __init__(
         self,
         n_elem=50,
-        final_time=1.0,
+        final_time=1.0, #num steps = final_time/sim_dt
         sim_dt=1.5e-5,
-        num_steps_per_update=100,
-        max_tension=5.0,
-        num_vertebrae=10,
+        num_steps_per_update=100, 
+        max_tension=10.0,
+        num_vertebrae=10, #changed from 10
         vertebra_height=0.0105,
         vertebra_mass=0.002,
         mode=1,
         target_position=None,
-        sphere_initial_velocity=0.5,
+        sphere_initial_velocity=0.2,
         gravity_enable = True,  # Enable gravity by default
         COLLECT_DATA_FOR_POSTPROCESSING=False,
         *args,
@@ -159,9 +159,9 @@ class Environment(gymnasium.Env):
 
         self.time_tracker = np.float64(0.0)
 
-        self.E = kwargs.get("E", 16.598637e6)
+        self.E = kwargs.get("E", 11e7) #changed
 
-        self.NU = kwargs.get("NU", 0.1)
+        self.NU = kwargs.get("NU", 0.1) #changed from 0.1
 
         self.max_rate_of_change_of_activation = kwargs.get(
             "max_rate_of_change_of_activation", np.infty
@@ -173,6 +173,14 @@ class Environment(gymnasium.Env):
             base_radius=0.05,
             density=1000,
         )
+        self.circle_radius = 1  # radius of the circular trajectory
+        self.circle_angular_velocity = 2 * np.pi  # 1 full loop per second
+        self.circle_center = (
+            self.target_position.copy()
+            if target_position is not None
+            else np.array([0.25, 0.25, 0.25])
+        )
+
     """Reset the environment to initial state."""
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed) #reqd for sb3
@@ -195,9 +203,15 @@ class Environment(gymnasium.Env):
         shear_mod = 7.216880e6
 
         # Set the arm properties after defining rods
-        base_length = 0.25  # rod base length
-        radius_tip = 0.011/2  # radius of the arm at the tip
-        radius_base = 0.011/2  # radius of the arm at the base
+        base_length = 0.25  # rod base length - changed from 0.25
+        base_length = 0.25 
+        # radius_tip = 0.011/2  # radius of the arm at the tip
+        # radius_base = 0.011/2  # radius of the arm at the base
+
+        # base_length = 1.0  # rod base length
+        radius_tip = 0.05  # radius of the arm at the tip
+        radius_base = 0.05
+
         radius_along_rod = np.linspace(radius_base, radius_tip, n_elem)
 
         # Arm is shearable Cosserat rod
@@ -222,7 +236,9 @@ class Environment(gymnasium.Env):
         
         if self.mode == 4:
             self.trajectory_iteration = 0
-            self._update_random_target_velocity()  # give it initial motion
+            self.time_tracker = 0.0  # reset time for consistent circular motion
+            self._update_circular_target_velocity(self.time_tracker)
+
 
 
         # initialize sphere
@@ -231,6 +247,14 @@ class Environment(gymnasium.Env):
             base_radius=0.05,
             density=1000,
         )
+        self.circle_radius = 0.2  # radius of the circular trajectory
+        self.circle_angular_velocity = 2 * np.pi  # 1 full loop per second
+        self.circle_center = (
+            self.target_position.copy()
+            if target_position is not None
+            else np.array([0.25, 0.25, 0])
+        )
+
 
         # Set rod and sphere directors to each other.
         self.sphere.director_collection[
@@ -442,10 +466,21 @@ class Environment(gymnasium.Env):
 
         return state
 
-    def _update_random_target_velocity(self):
-        rand_direction = np.random.randn(3)
-        rand_direction /= np.linalg.norm(rand_direction)  # normalize
-        self.sphere.velocity_collection[..., 0] = rand_direction * self.sphere_initial_velocity
+    def _update_circular_target_velocity(self, time):
+        """
+        Updates the target (sphere) velocity to follow a circular trajectory
+        in the XZ plane around the specified center.
+        """
+        omega = self.circle_angular_velocity
+        r = self.circle_radius
+        cx, cy, cz = self.circle_center
+
+        # Parametric equations for circle in XZ plane
+        vx = -r * omega * np.sin(omega * time)
+        vy =  r * omega * np.cos(omega * time)
+
+        self.sphere.velocity_collection[:, 0] = [vx, vy, 0]
+
         #d sphere velocity", self.sphere.velocity_collection[..., 0])
         
         
@@ -492,33 +527,9 @@ class Environment(gymnasium.Env):
 
 
         if self.mode == 4:
-            self.trajectory_iteration += 1
-            if self.trajectory_iteration == 500:
-                # print('changing direction')
-                self.rand_direction_1 = np.pi * np.random.uniform(0, 2)
-                # if self.dim == 2.0 or self.dim == 2.5:
-                #     self.rand_direction_2 = np.pi / 2.0
-               # elif self.dim == 3.0 or self.dim == 3.5:
-                self.rand_direction_2 = np.pi * np.random.uniform(0, 2)
-
-                self.v_x = (
-                    self.sphere_initial_velocity
-                    * np.cos(self.rand_direction_1)
-                    * np.sin(self.rand_direction_2)
-                )
-                self.v_y = (
-                    self.sphere_initial_velocity
-                    * np.sin(self.rand_direction_1)
-                    * np.sin(self.rand_direction_2)
-                )
-                self.v_z = self.sphere_initial_velocity * np.cos(self.rand_direction_2)
-
-                self.sphere.velocity_collection[..., 0] = [
-                    self.v_x,
-                    self.v_y,
-                    self.v_z,
-                ]
-                self.trajectory_iteration = 0
+            #self.trajectory_iteration += 1
+            self._update_circular_target_velocity(self.time_tracker)
+    
         
         self.current_step += 1
         
@@ -538,10 +549,10 @@ class Environment(gymnasium.Env):
         reward_dist = -np.square(dist).sum()
 
 
-       # reward_dist = dist
+        #reward_dist = dist
 
         reward = 1.0 * reward_dist
-        if self.current_step % 100 == 0:
+        if self.current_step % 1000 == 0:
             print(f"[Step {self.current_step}] Distance to target: {dist:.4f}")
         """ Done is a boolean to reset the environment before episode is completed """
         done = False
@@ -558,13 +569,15 @@ class Environment(gymnasium.Env):
             state = self.get_state()
             done = True
 
-        if np.isclose(dist, 0.0, atol=0.05 * 3.0).all():
+        if np.isclose(dist, 0.0, atol=0.05 * 5).all():
             self.on_goal += self.time_step
-            reward += 0.5
-        # for this specific case, check on_goal parameter
+            #reward += 0.5
+            reward += 5
+      # for this specific case, check on_goal parameter
         if np.isclose(dist, 0.0, atol=0.05).all():
             self.on_goal += self.time_step
-            reward += 1.5
+            #reward += 1.5
+            reward += 15
 
         else:
             self.on_goal = 0
@@ -589,8 +602,11 @@ class Environment(gymnasium.Env):
         terminated = done  # based on your existing logic
         truncated = False  # unless you implement time limits manually
 
+
         # print("Action:", action)
         # print("Tensions:", self.tensions)
+       # print(f"[Step {self.current_step}] Tip: {self.shearable_rod.position_collection[..., -1]}, Sphere: {self.sphere.position_collection[..., 0]}")
+
 
 
         return state, reward, terminated, truncated, {

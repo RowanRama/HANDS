@@ -32,4 +32,17 @@ cd HANDS
 pip install -e .
 ```
 
+## Documentation
+
+The HANDS subfolder contains TendonForces.py, which can be used as a forcing function
+The examples folder has a visualize_forces.py, which can be run to simulate a basic tendon-driven soft robot
+
+To run RL on a single finger tracing a sphere first run test_rl_env.py. The ouptput saves as test_sphere.pkl, which can be passed into gen_gif.py for a visualization.
+
+
+Concept	Meaning
+Episode:	A full run from env.reset() until done=True
+env.step():	One RL step = 1 action applied over num_steps_per_update * sim steps
+n_steps=2048:	PPO collects 2048 RL steps total (across many episodes if needed)
+Training freq:	PPO trains after every 2048 collected steps
 
