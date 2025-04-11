@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(1000000))
+    model.learn(total_timesteps=int(500000))
     model.save(os.path.join(log_dir, "ppo_case1"))
 
     # Evaluate rollout
