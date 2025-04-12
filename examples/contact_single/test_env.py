@@ -8,7 +8,27 @@ from tqdm import tqdm
 # minimum timestep can be calculated using this:
 # dtmax = (base_length/n_elements) * np.sqrt(density / max(youngs_modulus, shear_modulus)) # Maximum size of time step
 import pickle
-def tension_function(t):
+
+# List of points to go in X-Y plane
+points_to_go = np.array([
+    [0.1, 0.1],
+    [0.2, 0.2],
+    [0.0, 0.2],
+    [-0.1, 0.2],
+    [-0.2, 0.2],
+    [-0.2, 0.1],
+    [-0.2, 0.0],
+    [-0.2, -0.1],
+    [-0.2, -0.2],
+    [-0.1, -0.2],
+    [0.0, -0.2],
+    [0.1, -0.2],
+    [0.2, -0.2],
+    [0.2, -0.1],
+    [0.2, 0.0]])
+
+
+def tension_function(t, state):
     """
     Example tension function that returns a tension value based on time.
     This can be replaced with any function that defines how the tendon tension changes over time.
@@ -21,22 +41,36 @@ def tension_function(t):
     tension4 = 0
     # print(f"Tension at time {t}: {tension1}, {tension2}, {tension3}, {tension4}")
     
-    tension1 = np.sin(t*np.pi)  # Tension for tendon 1, now oscillates between 0 and 15
-    tension2 = np.cos(t*np.pi/2)  # Tension for tendon 2, now oscillates between 0 and 15
-    tension3 = (1-np.sin(t*np.pi))  # Tension for tendon 3, now oscillates between 0 and 15
-    tension4 = (1-np.cos(t*np.pi/2))  # Tension for tendon 4, now oscillates between 0 and 15
+    tension1 = np.sin(t*np.pi) 
+    tension2 = np.cos(t*np.pi/2) 
+    tension3 = (1-np.sin(t*np.pi))  
+    tension4 = (1-np.cos(t*np.pi/2)) 
     
     # Apply tensions to each tendon one by one. For 0 to 2 seconds, keep tension1 active, then switch to tension2, and so on.
+    # Switching every 2 seconds
+    
+    # Controller to verify that negative tension does not move anything.
+    # if t < 2:
+    #     tension[0] = -2*np.sin(t*np.pi)  # Tension for tendon 1
+    # elif t < 4:
+    #     tension[1] = 2*np.sin(t*np.pi)  # Tension for tendon 2
+    # elif t < 6:
+    #     tension[2] = 2*np.sin(t*np.pi)
+    # elif t < 8:
+    #     tension[3] = 2*np.sin(t*np.pi)
+
+
+    # Controller v1.0 for 4 tendons
+    point_to_go = points_to_go[int(t//2.0) % len(points_to_go)]  # Get the point to go based on time
     tension = np.zeros(4)
-    if t < 2:
-        tension[0] = -2*np.sin(t*np.pi)  # Tension for tendon 1
-    elif t < 4:
-        tension[1] = 2*np.sin(t*np.pi)  # Tension for tendon 2
-    elif t < 6:
-        tension[2] = 2*np.sin(t*np.pi)
-    elif t < 8:
-        tension[3] = 2*np.sin(t*np.pi)
-    return tension#*np.tanh(t*5)  # Return tensions for all tendons
+    tx = point_to_go[0]*20
+    ty = point_to_go[1]*20
+    tension[0], tension[1] = (tx, 0) if tx > 0 else (0, -tx)
+    tension[2], tension[3] = (ty, 0) if ty > 0 else (0, -ty)
+    # Observation: Open loop control moves it the correct direction, but the amplitude is not correct.
+
+    
+    return tension #*np.tanh(t*5)  # Return tensions for all tendons
     
 def test_environment():
     env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
@@ -49,7 +83,7 @@ def test_environment():
     
     for step in tqdm(range(num_steps)):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
-        action = tension_function(step * dT_L)  # Use the tension function to get the action for this step
+        action = tension_function(step * dT_L, state)  # Use the tension function to get the action for this step
         state, reward, done, additional_info = env.step(action)  # Take a step in the environment
         
         # print(f"Step {step}: Reward = {reward}, State = {state}")

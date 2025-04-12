@@ -86,6 +86,7 @@ class Environment(gymnasium.Env):
         target_position=None,
         sphere_initial_velocity=0.1,
         gravity_enable = True,  # Enable gravity by default
+        tendon_config = None,
         COLLECT_DATA_FOR_POSTPROCESSING=False,
         *args,
         **kwargs,
@@ -103,9 +104,9 @@ class Environment(gymnasium.Env):
         print("Total steps", self.total_steps)
 
         self.max_tension = max_tension
-        self.num_vertebrae = num_vertebrae
-        self.vertebra_height = vertebra_height
-        self.vertebra_mass = vertebra_mass
+        # self.num_vertebrae = num_vertebrae
+        # self.vertebra_height = vertebra_height
+        # self.vertebra_mass = vertebra_mass
 
         self.sphere_initial_velocity = sphere_initial_velocity
         self.gravity_enable = gravity_enable
@@ -127,13 +128,49 @@ class Environment(gymnasium.Env):
         self.COLLECT_DATA_FOR_POSTPROCESSING = COLLECT_DATA_FOR_POSTPROCESSING
 
         # Tendon Parameters
-        self.directions = [
-            np.array([1.0, 0.0, 0.0]),  # +X
-            np.array([-1.0, 0.0, 0.0]), # -X
-            np.array([0.0, 1.0, 0.0]),  # +Y
-            np.array([0.0, -1.0, 0.0]), # -Y
-        ]
-
+        if tendon_config is None:
+            # Default tendon configuration
+            self.directions = [
+                np.array([1.0, 0.0, 0.0]),  # +X
+                np.array([-1.0, 0.0, 0.0]), # -X
+                np.array([0.0, 1.0, 0.0]),  # +Y
+                np.array([0.0, -1.0, 0.0]), # -Y
+            ]
+            self.tendon_config = {
+                "directions": self.directions,
+                "num_vertebrae": [num_vertebrae] * len(self.directions),
+                "vertebra_height": [vertebra_height] * len(self.directions),
+                "first_vertebra_node": [0] * len(self.directions),
+                "final_vertebra_node": [n_elem-2] * len(self.directions),
+                "vertebra_mass": [vertebra_mass] * len(self.directions),
+            }
+        else:
+            self.tendon_config = tendon_config
+            # Check if the tendon_config has the required keys. If not, raise a warning and assint default values
+            required_keys = ["directions", "num_vertebrae", "vertebra_height", "first_vertebra_node", "final_vertebra_node", "vertebra_mass"]
+            
+            for key in required_keys:
+                if key not in self.tendon_config:
+                    print(f"Warning: '{key}' not found in tendon_config. Using default values.")
+                    if key == "directions":
+                        self.tendon_config[key] = [
+                            np.array([1.0, 0.0, 0.0]),  # +X
+                            np.array([-1.0, 0.0, 0.0]), # -X
+                            np.array([0.0, 1.0, 0.0]),  # +Y
+                            np.array([0.0, -1.0, 0.0]), # -Y
+                        ]
+                    elif key == "num_vertebrae":
+                        self.tendon_config[key] = [num_vertebrae] * len(self.directions)
+                    elif key == "vertebra_height":
+                        self.tendon_config[key] = [vertebra_height] * len(self.directions)
+                    elif key == "first_vertebra_node":
+                        self.tendon_config[key] = [0] * len(self.directions)
+                    elif key == "final_vertebra_node":
+                        self.tendon_config[key] = [n_elem-2] * len(self.directions)
+                    elif key == "vertebra_mass":
+                        self.tendon_config[key] = [vertebra_mass] * len(self.directions)
+                        
+        self.directions = self.tendon_config["directions"]
         # Define action space (4 tension values)
         self.action_space = spaces.Box(
             low=0.0,
@@ -245,16 +282,16 @@ class Environment(gymnasium.Env):
         # TendonForces uses the tensions selected by RL to
         # generate torques along the arm.
 
-        self.tensions = np.zeros(len(self.directions))
+        self.tensions = np.zeros(len(self.directions)) # Initialize tensions to zero
 
         for i, direction in enumerate(self.directions):
             self.simulator.add_forcing_to(self.shearable_rod).using(
                 TendonForces,
-                vertebra_height=self.vertebra_height,
-                num_vertebrae=self.num_vertebrae,
-                first_vertebra_node=2,
-                final_vertebra_node=n_elem-2,
-                vertebra_mass=self.vertebra_mass,
+                vertebra_height=self.tendon_config["vertebra_height"][i],
+                num_vertebrae=self.tendon_config["num_vertebrae"][i],
+                first_vertebra_node=self.tendon_config["first_vertebra_node"][i],
+                final_vertebra_node=self.tendon_config["final_vertebra_node"][i],
+                vertebra_mass=self.tendon_config["vertebra_mass"][i],
                 tendon_id=i,
                 tension_func_array=self.tensions,
                 vertebra_height_orientation=direction,

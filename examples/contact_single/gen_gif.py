@@ -51,6 +51,8 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     ax2.set_xlabel('X Position')
     ax2.set_ylabel('Y Position')
     ax2.set_title('Top-Down View (-Z Axis)')
+    ax2.set_aspect('equal')
+    ax2.grid()
 
     # Initialize the line objects
     line1, = ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)
