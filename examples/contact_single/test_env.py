@@ -74,7 +74,7 @@ class PIDController:
 
 # List of points to go in X-Y plane
 points_to_go = np.array([
-    [0.1, 0.1],
+    #[0.1, 0.1],
     [0.2, 0.2],
     [0.0, 0.2],
     [-0.1, 0.2],
@@ -90,8 +90,8 @@ points_to_go = np.array([
     [0.2, -0.1],
     [0.2, 0.0]])/2
 
-pid_x = PIDController(Kp=3., Ki=50.0, Kd=0., output_limits=(-20, 20))
-pid_y = PIDController(Kp=3., Ki=50.0, Kd=0., output_limits=(-20, 20))
+pid_x = PIDController(Kp=0., Ki=50.0, Kd=0., output_limits=(-20, 20))
+pid_y = PIDController(Kp=0., Ki=50.0, Kd=0., output_limits=(-20, 20))
 
 def tension_function(t, state):
     """
@@ -124,7 +124,7 @@ def tension_function(t, state):
     # elif t < 8:
     #     tension[3] = 2*np.sin(t*np.pi)
 
-    point_to_go = points_to_go[int(t//2.0) % len(points_to_go)] # Get the point to go based on time
+    point_to_go = points_to_go[int(t//5.0) % len(points_to_go)] # Get the point to go based on time
     # # Controller v1.0 for 4 tendons
     # tx = point_to_go[0]*20
     # ty = point_to_go[1]*20
@@ -158,7 +158,7 @@ def test_environment():
     # "final_vertebra_node": [n_elem-2, n_elem//2-1, n_elem-2, n_elem//2-1, n_elem-2, n_elem//2-1],
     # }
 
-    env = Environment(n_elem=n_elem, mode=1, final_time= 20, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
+    env = Environment(n_elem=n_elem, mode=1, final_time= 3, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params

@@ -22,6 +22,7 @@ class SoftRobotSimulator(
     Forcing,
     CallBacks,
     Damping,
+    Contact,
 ):
     pass
 
@@ -88,6 +89,11 @@ class Environment(gymnasium.Env):
         gravity_enable = True,  # Enable gravity by default
         tendon_config = None,
         COLLECT_DATA_FOR_POSTPROCESSING=False,
+        sphere_params = {
+            "density": 1000,
+            "radius": 0.08,
+            "position": np.array([0.1, 0.1, 0.2]),
+        },
         *args,
         **kwargs,
     ):
@@ -205,6 +211,11 @@ class Environment(gymnasium.Env):
         )
 
         self.n_elem = n_elem
+        
+        ## Adding a sphere to the simulation
+        self.sphere_params = sphere_params
+        
+        
 
     def reset(self):
         """Reset the environment to initial state."""
@@ -261,6 +272,14 @@ class Environment(gymnasium.Env):
         ] = self.shearable_rod.director_collection[..., 0]
         self.simulator.append(self.sphere)
 
+        # Set the contact sphere parameters
+        self.sphere2 = Sphere(
+            center=self.sphere_params["position"],
+            base_radius=self.sphere_params["radius"],
+            density=self.sphere_params["density"],
+        )
+        self.simulator.append(self.sphere2)
+        
         # Add gravity
         if self.gravity_enable:
             self.simulator.add_forcing_to(self.shearable_rod).using(
@@ -278,6 +297,21 @@ class Environment(gymnasium.Env):
             time_step = self.time_step
         )
 
+        # Add contact forces
+        self.simulator.detect_contact_between(self.shearable_rod, self.sphere2).using(
+            RodSphereContact,
+            k = 1e4,
+            nu = 10,
+        )
+        # Add constraints
+        self.simulator.constrain(self.sphere2).using(
+            GeneralConstraint,
+            constrained_position_idx=(0,),
+            constrained_director_idx=(0,),
+            translational_constraint_selector=np.array([False, True, True]),
+            rotational_constraint_selector=np.array([True, True, True]),
+        )
+        
         # Add muscle torques acting on the arm for actuation
         # TendonForces uses the tensions selected by RL to
         # generate torques along the arm.

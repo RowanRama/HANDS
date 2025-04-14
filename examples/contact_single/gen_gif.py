@@ -53,7 +53,21 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     ax2.set_title('Top-Down View (-Z Axis)')
     ax2.set_aspect('equal')
     ax2.grid()
+    # Define the center and radius for the sphere and circle
+    center = np.array([0.1, 0.1, 0.2])
+    radius = 0.08
 
+    # Add a sphere to the 3D view
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    sphere_x = radius * np.outer(np.cos(u), np.sin(v)) + center[0]
+    sphere_y = radius * np.outer(np.sin(u), np.sin(v)) + center[1]
+    sphere_z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center[2]
+    ax1.plot_surface(sphere_x, sphere_y, sphere_z, color='r', alpha=0.3)
+
+    # Add a circle to the 2D view
+    circle = plt.Circle((center[0], center[1]), radius, color='r', alpha=0.3)
+    ax2.add_patch(circle)
     # Initialize the line objects
     line1, = ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)
     line2, = ax2.plot([], [], marker='o', linestyle='-', alpha=0.7)
