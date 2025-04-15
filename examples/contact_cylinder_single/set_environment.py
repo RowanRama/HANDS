@@ -89,10 +89,15 @@ class Environment(gymnasium.Env):
         gravity_enable = True,  # Enable gravity by default
         tendon_config = None,
         COLLECT_DATA_FOR_POSTPROCESSING=False,
-        sphere_params = {
+        cylin_params = {
+            "length": 0.2,
+            "direction": np.array([0.0, 1.0, 0.0]),
+            "normal": np.array([0.0, 0.0, 1.0]),
+            "radius": 0.002,
+            "start_pos": np.array([0.05, 0.0, 0.2]),
+            "k": 1e4,
+            "nu": 10,
             "density": 1000,
-            "radius": 0.08,
-            "position": np.array([0.1, 0.1, 0.2]),
         },
         *args,
         **kwargs,
@@ -213,7 +218,7 @@ class Environment(gymnasium.Env):
         self.n_elem = n_elem
         
         ## Adding a sphere to the simulation
-        self.sphere_params = sphere_params
+        self.cylin_params = cylin_params
         
         
 
@@ -273,12 +278,15 @@ class Environment(gymnasium.Env):
         self.simulator.append(self.sphere)
 
         # Set the contact sphere parameters
-        self.sphere2 = Sphere(
-            center=self.sphere_params["position"],
-            base_radius=self.sphere_params["radius"],
-            density=self.sphere_params["density"],
+        self.cylin = Cylinder(
+            start = self.cylin_params["start_pos"],
+            direction = self.cylin_params["direction"],
+            normal = self.cylin_params["normal"],
+            base_length=self.cylin_params["length"],
+            base_radius=self.cylin_params["radius"],
+            density=self.cylin_params["density"],
         )
-        self.simulator.append(self.sphere2)
+        self.simulator.append(self.cylin)
         
         # Add gravity
         if self.gravity_enable:
@@ -298,18 +306,18 @@ class Environment(gymnasium.Env):
         )
 
         # Add contact forces
-        self.simulator.detect_contact_between(self.shearable_rod, self.sphere2).using(
-            RodSphereContact,
+        self.simulator.detect_contact_between(self.shearable_rod, self.cylin).using(
+            RodCylinderContact,
             k = 1e4,
             nu = 10,
         )
         # Add constraints
-        self.simulator.constrain(self.sphere2).using(
+        self.simulator.constrain(self.cylin).using(
             GeneralConstraint,
             constrained_position_idx=(0,),
             constrained_director_idx=(0,),
-            translational_constraint_selector=np.array([False, True, True]),
-            rotational_constraint_selector=np.array([True, True, True]),
+            translational_constraint_selector=np.array([True, True, True]),
+            rotational_constraint_selector=np.array([True, True, False]),
         )
         
         # Add muscle torques acting on the arm for actuation
@@ -425,6 +433,7 @@ class Environment(gymnasium.Env):
         # reset previous_action
         self.previous_action = None
 
+        print(self.cylin.director_collection)
         # After resetting the environment return state information
         return state
 
@@ -612,7 +621,9 @@ class Environment(gymnasium.Env):
 
         self.previous_action = action
 
-        info = {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy(), "sphere_position": self.sphere2.position_collection.copy()}
+        info = {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy(), 
+                "cylinder_position": self.cylin.position_collection.copy(),
+                "cylinder_director": self.cylin.director_collection.copy(),}
 
         return state, reward, done, info
 

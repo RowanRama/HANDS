@@ -21,7 +21,10 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     backbone_points = [data['points_bb'] for data in outputs]
     # Extract the time stamps for the frames
     time_stamps = [data['time'] for data in outputs]
-
+    # Extract the sphere positions for each step
+    sphere_pos = [data['sphere_pos'] for data in outputs]
+    sphere_pos = np.array(sphere_pos)  # Convert to NumPy array for easier manipulation
+    
     # Calculate the total number of frames for the GIF
     fps = 10  # Frames per second for the GIF
     total_frames = int(simulation_duration * fps)
@@ -30,6 +33,7 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     frame_indices = np.linspace(0, len(backbone_points) - 1, total_frames, dtype=int)
     backbone_points = [backbone_points[i] for i in frame_indices]
     time_stamps = [time_stamps[i] for i in frame_indices]
+    sphere_pos = [sphere_pos[i] for i in frame_indices]
 
     # Set up the figure and 3D axes
     fig = plt.figure(figsize=(12, 6))
@@ -53,44 +57,52 @@ def create_gif(outputs, gif_path="backbone_animation.gif"):
     ax2.set_title('Top-Down View (-Z Axis)')
     ax2.set_aspect('equal')
     ax2.grid()
-    # Define the center and radius for the sphere and circle
-    center = np.array([0.1, 0.1, 0.2])
-    radius = 0.08
 
-    # Add a sphere to the 3D view
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    sphere_x = radius * np.outer(np.cos(u), np.sin(v)) + center[0]
-    sphere_y = radius * np.outer(np.sin(u), np.sin(v)) + center[1]
-    sphere_z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center[2]
-    ax1.plot_surface(sphere_x, sphere_y, sphere_z, color='r', alpha=0.3)
-
-    # Add a circle to the 2D view
-    circle = plt.Circle((center[0], center[1]), radius, color='r', alpha=0.3)
-    ax2.add_patch(circle)
     # Initialize the line objects
     line1, = ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)
     line2, = ax2.plot([], [], marker='o', linestyle='-', alpha=0.7)
+
+    # Initialize the sphere and circle objects
+    sphere_surface = [None]
+    circle_patch = [None]
 
     def update(frame):
         """
         Update function for the animation.
         """
         points = backbone_points[frame]
+        sphere_center = sphere_pos[frame]
+        radius = 0.08  # Assuming the radius is constant
 
         # Update 3D view
         line1.set_data(points[0, :], points[1, :])
         line1.set_3d_properties(points[2, :])
         ax1.set_title(f"3D View - Time: {time_stamps[frame]:.2f} s")
 
-        # Update top-down view
+        # Update the sphere in the 3D view
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        sphere_x = radius * np.outer(np.cos(u), np.sin(v)) + sphere_center[0]
+        sphere_y = radius * np.outer(np.sin(u), np.sin(v)) + sphere_center[1]
+        sphere_z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + sphere_center[2]
+        if sphere_surface[0] is not None:
+            sphere_surface[0].remove()
+        sphere_surface[0] = ax1.plot_surface(sphere_x, sphere_y, sphere_z, color='r', alpha=0.3)
+
+        # Update 2D view
         line2.set_data(points[0, :], points[1, :])
         ax2.set_title(f"Top-Down View - Time: {time_stamps[frame]:.2f} s")
+
+        # Update the circle in the 2D view
+        if circle_patch[0] is not None:
+            circle_patch[0].remove()
+        circle_patch[0] = plt.Circle((sphere_center[0], sphere_center[1]), radius, color='r', alpha=0.3)
+        ax2.add_patch(circle_patch[0])
 
         return line1, line2
 
     # Create the animation
-    ani = FuncAnimation(fig, update, frames=len(backbone_points), interval=1000 / fps, blit=True)
+    ani = FuncAnimation(fig, update, frames=len(backbone_points), interval=1000 / fps, blit=False)
 
     # Save the animation as a GIF
     ani.save(gif_path, writer='imagemagick', fps=fps)

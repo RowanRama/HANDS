@@ -184,7 +184,8 @@ def test_environment():
             "points_bb": additional_info["position"],
             "time": step * dT_L,
             "tensions": action,
-            "sphere_pos": additional_info["sphere_position"],
+            "cylin_pos": additional_info["cylinder_position"],
+            "cylin_dir": additional_info["cylinder_director"],
         }
         outputs.append(step_data)
         if done:
