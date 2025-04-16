@@ -64,6 +64,7 @@ def test_environment():
             "tensions": action
         }
         outputs.append(step_data)
+        print("tip position:", additional_info["position"][:, -1])
         if done:
             print("Episode finished")
             break
