@@ -39,7 +39,9 @@ def tension_function(t):
     return tension#*np.tanh(t*5)  # Return tensions for all tendons
     
 def test_environment():
-    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=np.array([0.5, 0.5, 0.5]), gravity_enable=False)
+    #potential position tip position: [0.0472453  0.         0.24422374]
+    target_position = [0.10040713, 0.0, 0.22228797]
+    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=target_position, gravity_enable=False)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params

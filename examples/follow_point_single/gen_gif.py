@@ -12,7 +12,7 @@ def load_outputs(file_path):
         outputs = pickle.load(f)
     return outputs
 
-def create_gif(outputs, gif_path="backbone_animation.gif"):
+def create_gif(outputs, gif_path="backbone_animation_RL.gif"):
     """
     Create a GIF of the backbone points for each instant with two views.
     """
@@ -120,7 +120,7 @@ def plot_trajectory_and_tensions(outputs):
 
 if __name__ == "__main__":
     # Load the outputs from the pickle file
-    outputs = load_outputs("outputs2.pkl")
+    outputs = load_outputs("ppo_case1_batch16000/outputs.pkl")
 
     # Create and save the GIF
     create_gif(outputs)

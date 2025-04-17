@@ -168,10 +168,12 @@ class Environment(gymnasium.Env):
         )
 
         self.n_elem = n_elem
+    
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed) #reqd for sb3
 
-    def reset(self):
-        """Reset the environment to initial state."""
-        # Create simulator
+        if seed is not None:
+            np.random.seed(seed)
         self.simulator = SoftRobotSimulator()
 
         n_elem = self.n_elem
@@ -223,6 +225,11 @@ class Environment(gymnasium.Env):
             ..., 0
         ] = self.shearable_rod.director_collection[..., 0]
         self.simulator.append(self.sphere)
+
+        self.initial_dist = np.linalg.norm( #the real distance between tip (goal and initial state)
+            target_position - self.shearable_rod.position_collection[..., -1]
+    )
+
 
         # Add gravity
         if self.gravity_enable:
@@ -355,7 +362,8 @@ class Environment(gymnasium.Env):
         self.previous_action = None
 
         # After resetting the environment return state information
-        return state
+        return state, {}
+
 
     def get_state(self):
         """
@@ -452,6 +460,7 @@ class Environment(gymnasium.Env):
         self.tensions[:] = self.action[:]
         
         
+
         # Simulate for num_steps_per_update steps
         for _ in range(self.num_steps_per_update):
             self.time_tracker = self.do_step(
@@ -504,6 +513,7 @@ class Environment(gymnasium.Env):
 
         # Position of the rod cannot be NaN, it is not valid, stop the simulation
         invalid_values_condition = _isnan_check(self.shearable_rod.position_collection)
+        
 
         if invalid_values_condition == True:
             print(" Nan detected, exiting simulation now")
@@ -513,17 +523,38 @@ class Environment(gymnasium.Env):
             reward = -1000
             state = self.get_state()
             done = True
+        
 
-        if np.isclose(dist, 0.0, atol=0.05 * 2.0).all():
-            self.on_goal += self.time_step
+        
+        relative_error = dist / self.initial_dist #if dist is still close to original thats bad
+        print("relative error: ", relative_error)
+        print("-----------")
+        #ideally, we want it to be within 1.2x or 0.8x of the goal distance
+        #if goal dist is (set as) initial distance, then 
+
+        # Distance-based shaping
+        if relative_error < 0.2:
             reward += 0.5
-        # for this specific case, check on_goal parameter
-        if np.isclose(dist, 0.0, atol=0.05).all():
-            self.on_goal += self.time_step
-            reward += 1.5
+        if relative_error < 0.1:
+            reward += 1.0
+        if relative_error < 0.05:
+            reward += 2.0
+        #self.on_goal = 
+        # if self.on_goal:
+        #     reward += 10
+        print("reward: ", reward)
+        
 
-        else:
-            self.on_goal = 0
+        # if np.isclose(dist, 0.0, atol=0.05 * 2.0).all():
+        #     self.on_goal += self.time_step
+        #     reward += 0.5
+        # # for this specific case, check on_goal parameter
+        # if np.isclose(dist, 0.0, atol=0.05).all():
+        #     self.on_goal += self.time_step
+        #     reward += 1.5
+
+        # else:
+        #     self.on_goal = False
 
         if self.current_step >= self.total_learning_steps:
             done = True
@@ -541,7 +572,13 @@ class Environment(gymnasium.Env):
 
         self.previous_action = action
 
-        return state, reward, done, {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy()}
+        #return state, reward, done, {"time": self.time_tracker, "position": self.shearable_rod.position_collection.copy()}
+        terminated = done
+        truncated = False
+        return state, reward, terminated, truncated, {
+            "time": self.time_tracker,
+            "position": self.shearable_rod.position_collection.copy()
+        }
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
