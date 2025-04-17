@@ -42,15 +42,22 @@ class SingleFinger(gymnasium.Env):
             finger_position=np.array([0.0, 0.0, 0.0]),
             finger_controller=None,
             COLLECT_DATA_FOR_POSTPROCESSING=False,
+            cylinder_enabled = False,
             cylin_params = {
-            "length": 0.2,
-            "direction": np.array([0.0, 1.0, 0.0]),
-            "normal": np.array([0.0, 0.0, 1.0]),
-            "radius": 0.002,
-            "start_pos": np.array([0.05, 0.0, 0.2]),
-            "k": 1e4,
-            "nu": 10,
-            "density": 1000,
+                "length": 0.2,
+                "direction": np.array([0.0, 1.0, 0.0]),
+                "normal": np.array([0.0, 0.0, 1.0]),
+                "radius": 0.002,
+                "start_pos": np.array([0.05, 0.0, 0.2]),
+                "k": 1e4,
+                "nu": 10,
+                "density": 1000,
+            },
+            sphere_enabled = False,
+            sphere_params = {
+                "density": 1000,
+                "radius": 0.08,
+                "position": np.array([0.1, 0.1, 0.2]),
             },
             **kwargs
     ):
@@ -110,6 +117,10 @@ class SingleFinger(gymnasium.Env):
 
         ## Adding a sphere to the simulation
         self.cylin_params = cylin_params
+        self.cylinder_enabled = cylinder_enabled
+
+        self.sphere_enabled = sphere_enabled
+        self.sphere_params = sphere_params
 
     def reset(self):
         """
@@ -136,40 +147,65 @@ class SingleFinger(gymnasium.Env):
         ] = self.finger.rod.director_collection[..., 0]
         self.simulator.append(self.sphere)
 
-        # Set the contact sphere parameters
-        self.cylin = Cylinder(
-            start = self.cylin_params["start_pos"],
-            direction = self.cylin_params["direction"],
-            normal = self.cylin_params["normal"],
-            base_length=self.cylin_params["length"],
-            base_radius=self.cylin_params["radius"],
-            density=self.cylin_params["density"],
-        )
-        self.simulator.append(self.cylin)
-        
-        # Add contact forces
-        self.simulator.detect_contact_between(self.finger.rod, self.cylin).using(
-            RodCylinderContact,
-            k = 1e4,
-            nu = 10,
-        )
-        # Add damping
-        # self.cylin.ring_rod_flag = False
-        # print(f"element_mass: {self.cylin.element_mass}")
-        # print(f"nodal_mass: {nodal_mass}")
-        # self.simulator.dampen(self.cylin).using(
-        #     AnalyticalLinearDamper,
-        #     damping_constant=0.5,
-        #     time_step = self.time_step
-        # )
-        # Add constraints
-        self.simulator.constrain(self.cylin).using(
-            GeneralConstraint,
-            constrained_position_idx=(0,),
-            constrained_director_idx=(0,),
-            translational_constraint_selector=np.array([True, True, True]),
-            rotational_constraint_selector=np.array([True, True, False]),
-        )
+        if self.sphere_enabled:
+            # Set the contact sphere parameters
+            self.sphere2 = Sphere(
+                center=self.sphere_params["position"],
+                base_radius=self.sphere_params["radius"],
+                density=self.sphere_params["density"],
+            )
+            self.simulator.append(self.sphere2)
+
+            # Add contact forces
+            self.simulator.detect_contact_between(self.finger.rod, self.sphere2).using(
+                RodSphereContact,
+                k = 1e4,
+                nu = 10,
+            )
+            # Add constraints
+            self.simulator.constrain(self.sphere2).using(
+                GeneralConstraint,
+                constrained_position_idx=(0,),
+                constrained_director_idx=(0,),
+                translational_constraint_selector=np.array([False, True, True]),
+                rotational_constraint_selector=np.array([True, True, True]),
+            )
+
+        if self.cylinder_enabled:
+            # Set the contact sphere parameters
+            self.cylin = Cylinder(
+                start = self.cylin_params["start_pos"],
+                direction = self.cylin_params["direction"],
+                normal = self.cylin_params["normal"],
+                base_length=self.cylin_params["length"],
+                base_radius=self.cylin_params["radius"],
+                density=self.cylin_params["density"],
+            )
+            self.simulator.append(self.cylin)
+            
+            # Add contact forces
+            self.simulator.detect_contact_between(self.finger.rod, self.cylin).using(
+                RodCylinderContact,
+                k = 1e4,
+                nu = 10,
+            )
+            # Add damping
+            # self.cylin.ring_rod_flag = False
+            # print(f"element_mass: {self.cylin.element_mass}")
+            # print(f"nodal_mass: {nodal_mass}")
+            # self.simulator.dampen(self.cylin).using(
+            #     AnalyticalLinearDamper,
+            #     damping_constant=0.5,
+            #     time_step = self.time_step
+            # )
+            # Add constraints
+            self.simulator.constrain(self.cylin).using(
+                GeneralConstraint,
+                constrained_position_idx=(0,),
+                constrained_director_idx=(0,),
+                translational_constraint_selector=np.array([True, True, True]),
+                rotational_constraint_selector=np.array([True, True, False]),
+            )
 
         # Finalize simulation environment. After finalize, you cannot add
         # any forcing, constrain or call back functions
@@ -294,8 +330,16 @@ class SingleFinger(gymnasium.Env):
 
         self.previous_action = action
 
-        return state, reward, done, {"time": self.time_tracker, "position": self.finger.rod.position_collection.copy(),"cylinder_position": self.cylin.position_collection.copy(),
-                "cylinder_director": self.cylin.director_collection.copy(),}
+        extra_info = {"time": self.time_tracker, "position": self.finger.rod.position_collection.copy()}
+
+        if self.sphere_enabled:
+            extra_info["sphere_position"] = self.sphere.position_collection.copy()
+        if self.cylinder_enabled:
+            extra_info["cylinder_position"] = self.cylin.position_collection.copy()
+            extra_info["cylinder_director"] = self.cylin.director_collection.copy()
+        
+
+        return state, reward, done, extra_info
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""

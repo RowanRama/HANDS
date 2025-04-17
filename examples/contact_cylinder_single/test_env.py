@@ -30,7 +30,7 @@ points_to_go = np.array([
 def test_environment():
     n_elem = 50
 
-    env = SingleFinger(n_elem=n_elem, final_time= 3, gravity=False)
+    env = SingleFinger(n_elem=n_elem, final_time= 3, gravity=False, cylinder_enabled=True)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
