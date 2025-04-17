@@ -9,6 +9,7 @@ import sys
 from post_processing import plot_video_with_sphere
 
 from HANDS.TendonForces import TendonForces
+from HANDS.env_helpers import add_finger
 from elastica.external_forces import GravityForces
 
 from elastica._calculus import _isnan_check
@@ -174,39 +175,10 @@ class Environment(gymnasium.Env):
         # Create simulator
         self.simulator = SoftRobotSimulator()
 
-        n_elem = self.n_elem
-        start = np.zeros((3,))
-        direction = np.array([0.0, 0.0, 1.0])  # rod direction: pointing upwards
-        normal = np.array([1.0, 0.0, 0.0])
-        binormal = np.cross(direction, normal)
-
-        density = 1000
-        nu = self.NU  # dissipation coefficient
-        E = self.E  # Young's Modulus
-        shear_mod = 7.216880e6
-
-        # Set the arm properties after defining rods
-        base_length = 0.25  # rod base length
-        radius_tip = 0.011/2  # radius of the arm at the tip
-        radius_base = 0.011/2  # radius of the arm at the base
-        radius_along_rod = np.linspace(radius_base, radius_tip, n_elem)
-
-        # Arm is shearable Cosserat rod
-        self.shearable_rod = CosseratRod.straight_rod(
-            n_elem,
-            start,
-            direction,
-            normal,
-            base_length,
-            base_radius=radius_base,
-            density=density,
-            youngs_modulus=E,
-            shear_modulus=shear_mod,
-        )
-
-        # Add rod to simulator
-        self.simulator.append(self.shearable_rod)
-
+        tensions, rod = add_finger(self, self.simulator)
+        self.shearable_rod = rod
+        self.tensions = tensions
+        
         if self.mode != 2:
             # fixed target position to reach
             target_position = self.target_position
@@ -223,43 +195,6 @@ class Environment(gymnasium.Env):
             ..., 0
         ] = self.shearable_rod.director_collection[..., 0]
         self.simulator.append(self.sphere)
-
-        # Add gravity
-        if self.gravity_enable:
-            self.simulator.add_forcing_to(self.shearable_rod).using(
-                GravityForces, acc_gravity=np.array([0.0, 0.0, -9.80665])
-            )
-
-        # Add boundary constraints as fixing one end
-        self.simulator.constrain(self.shearable_rod).using(
-            OneEndFixedRod, constrained_position_idx=(0,), constrained_director_idx=(0,)
-        )
-
-        self.simulator.dampen(self.shearable_rod).using(
-            AnalyticalLinearDamper,
-            damping_constant=nu,
-            time_step = self.time_step
-        )
-
-        # Add muscle torques acting on the arm for actuation
-        # TendonForces uses the tensions selected by RL to
-        # generate torques along the arm.
-
-        self.tensions = np.zeros(len(self.directions))
-
-        for i, direction in enumerate(self.directions):
-            self.simulator.add_forcing_to(self.shearable_rod).using(
-                TendonForces,
-                vertebra_height=self.vertebra_height,
-                num_vertebrae=self.num_vertebrae,
-                first_vertebra_node=2,
-                final_vertebra_node=n_elem-2,
-                vertebra_mass=self.vertebra_mass,
-                tendon_id=i,
-                tension_func_array=self.tensions,
-                vertebra_height_orientation=direction,
-                n_elements=n_elem
-            )
 
         # Call back function to collect arm data from simulation
         class ArmMuscleBasisCallBack(CallBackBaseClass):
