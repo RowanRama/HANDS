@@ -311,6 +311,15 @@ class Environment(gymnasium.Env):
             k = 1e4,
             nu = 10,
         )
+        # Add damping
+        # self.cylin.ring_rod_flag = False
+        # print(f"element_mass: {self.cylin.element_mass}")
+        # print(f"nodal_mass: {nodal_mass}")
+        # self.simulator.dampen(self.cylin).using(
+        #     AnalyticalLinearDamper,
+        #     damping_constant=0.5,
+        #     time_step = self.time_step
+        # )
         # Add constraints
         self.simulator.constrain(self.cylin).using(
             GeneralConstraint,
