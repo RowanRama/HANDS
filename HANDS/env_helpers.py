@@ -3,7 +3,7 @@ from elastica import *
 from HANDS.TendonForces import TendonForces
 from elastica.external_forces import GravityForces
 
-def add_4_tendon_finger(simulator, start, **kwargs):
+def add_finger(simulator, start, **kwargs):
     """
     Add a finger to the environment.
     :param environment: The environment to which the finger will be added.

@@ -20,6 +20,7 @@ class SoftRobotSimulator(
     Forcing,
     CallBacks,
     Damping,
+    Contact,
 ):
     pass
 
@@ -41,6 +42,16 @@ class SingleFinger(gymnasium.Env):
             finger_position=np.array([0.0, 0.0, 0.0]),
             finger_controller=None,
             COLLECT_DATA_FOR_POSTPROCESSING=False,
+            cylin_params = {
+            "length": 0.2,
+            "direction": np.array([0.0, 1.0, 0.0]),
+            "normal": np.array([0.0, 0.0, 1.0]),
+            "radius": 0.002,
+            "start_pos": np.array([0.05, 0.0, 0.2]),
+            "k": 1e4,
+            "nu": 10,
+            "density": 1000,
+            },
             **kwargs
     ):
         """
@@ -90,6 +101,16 @@ class SingleFinger(gymnasium.Env):
 
         self.time_tracker = np.float64(0.0)
 
+        self.finger = Finger(
+            self.finger_position,
+            self.time_step,
+            self.controller,
+            **self.kwargs,
+        )
+
+        ## Adding a sphere to the simulation
+        self.cylin_params = cylin_params
+
     def reset(self):
         """
         Reset the environment to its initial state.
@@ -98,16 +119,9 @@ class SingleFinger(gymnasium.Env):
         """
         self.simulator = SoftRobotSimulator()
 
-        self.finger = Finger(
-            self.simulator,
-            self.finger_position,
-            self.kwargs,
-            controller=self.controller,
-        )
+        self.finger.reset(self.simulator)
 
-        if self.mode != 2:
-            # fixed target position to reach
-            target_position = self.target_position
+        target_position = self.target_position
 
         # initialize sphere
         self.sphere = Sphere(
@@ -121,6 +135,41 @@ class SingleFinger(gymnasium.Env):
             ..., 0
         ] = self.finger.rod.director_collection[..., 0]
         self.simulator.append(self.sphere)
+
+        # Set the contact sphere parameters
+        self.cylin = Cylinder(
+            start = self.cylin_params["start_pos"],
+            direction = self.cylin_params["direction"],
+            normal = self.cylin_params["normal"],
+            base_length=self.cylin_params["length"],
+            base_radius=self.cylin_params["radius"],
+            density=self.cylin_params["density"],
+        )
+        self.simulator.append(self.cylin)
+        
+        # Add contact forces
+        self.simulator.detect_contact_between(self.finger.rod, self.cylin).using(
+            RodCylinderContact,
+            k = 1e4,
+            nu = 10,
+        )
+        # Add damping
+        # self.cylin.ring_rod_flag = False
+        # print(f"element_mass: {self.cylin.element_mass}")
+        # print(f"nodal_mass: {nodal_mass}")
+        # self.simulator.dampen(self.cylin).using(
+        #     AnalyticalLinearDamper,
+        #     damping_constant=0.5,
+        #     time_step = self.time_step
+        # )
+        # Add constraints
+        self.simulator.constrain(self.cylin).using(
+            GeneralConstraint,
+            constrained_position_idx=(0,),
+            constrained_director_idx=(0,),
+            translational_constraint_selector=np.array([True, True, True]),
+            rotational_constraint_selector=np.array([True, True, False]),
+        )
 
         # Finalize simulation environment. After finalize, you cannot add
         # any forcing, constrain or call back functions
@@ -193,7 +242,7 @@ class SingleFinger(gymnasium.Env):
 
         self.current_step += 1
 
-        self.get_state()
+        state = self.get_state()
 
         dist = np.linalg.norm(
             self.finger.rod.position_collection[..., -1]
@@ -245,7 +294,8 @@ class SingleFinger(gymnasium.Env):
 
         self.previous_action = action
 
-        return state, reward, done, {"time": self.time_tracker, "position": self.finger.rod.position_collection.copy()}
+        return state, reward, done, {"time": self.time_tracker, "position": self.finger.rod.position_collection.copy(),"cylinder_position": self.cylin.position_collection.copy(),
+                "cylinder_director": self.cylin.director_collection.copy(),}
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""

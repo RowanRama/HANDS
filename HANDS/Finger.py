@@ -1,4 +1,4 @@
-from numpy import np
+import numpy as np
 from elastica._calculus import _isnan_check
 from HANDS.env_helpers import add_finger
 from HANDS.Controller import BaseController, PIDController
@@ -8,7 +8,7 @@ class Finger:
     Class representing a finger of the soft manipulator.
     """
 
-    def __init__(self, simulation, position, controller=None, **kwargs):
+    def __init__(self, position, time_step, controller=None,  **kwargs):
         """
         Initialize the Finger object.
 
@@ -32,25 +32,26 @@ class Finger:
         """
         if controller is None:
             controller = PIDController(max_tension=20.0)
-        if not issubclass(controller, BaseController):
+        elif not issubclass(controller, BaseController):
             raise ValueError("Controller must be a subclass of BaseController.")
         
         self.controller = controller
-        self.simulation = simulation
         self.init_position = position
         self.init_target_position = np.zeros(3)
+        self.time_step = time_step
         
         self.kwargs = kwargs
 
         self.n_elem = kwargs.get("n_elem", 50)  # Number of elements in the finger
         self.obs_state_points = kwargs.get("obs_state_points", 10)  # Number of points for observation state
 
-    def reset(self):
+    def reset(self, simulator):
         """
         Reset the finger to its initial state.
         """
+        self.simulator = simulator
         self.target_position = self.init_target_position
-        tensions, rod = add_finger(self.simulation, self.init_position, self.kwargs)
+        tensions, rod = add_finger(self.simulator, self.init_position, **self.kwargs)
         self.tensions = tensions
         self.rod = rod
 
@@ -94,8 +95,8 @@ class Finger:
         :param angles: List of joint angles.
         """
         self.target_position = target_position
-        cur_position = self.rod.position_collection[-1]
-        tensions = self.controller.get_tensions(target_position, cur_position, self.simulation.time_step)
+        cur_position = self.rod.position_collection[..., -1]
+        tensions = self.controller.get_tensions(target_position, cur_position, self.time_step)
         self.tensions[:] = tensions[:]
 
     def check_nan(self) -> bool:

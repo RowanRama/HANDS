@@ -61,10 +61,10 @@ class PIDController(BaseController):
         """
         
         # Check if the current_tip_position is a 1D arrary of 2 elements
-        if current_tip_position.ndim != 1 or current_tip_position.size >= 2:
-            raise ValueError("current_tip_position should be a 1D array of 2 elements.")
-        if goal_tip_position.ndim != 1 or goal_tip_position.size >= 2:
-            raise ValueError("goal_tip_position should be a 1D array of 2 elements.")
+        if current_tip_position.ndim != 1 or current_tip_position.size != 3:
+            raise ValueError(f"current_tip_position should be a 1D array of 3 elements. Got array of shape {current_tip_position.shape}.")
+        if goal_tip_position.ndim != 1 or goal_tip_position.size != 3:
+            raise ValueError(f"goal_tip_position should be a 1D array of 3 elements. Got array of shape {goal_tip_position.shape}.")
         error = current_tip_position - goal_tip_position
         dt = current_time - self._last_time if self._last_time is not None else 0
 
