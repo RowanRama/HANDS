@@ -76,9 +76,6 @@ class Finger:
             )
         )
 
-        rod_compact_velocity = self.rod.velocity_collection[..., -1]
-        rod_compact_velocity_norm = np.array([np.linalg.norm(rod_compact_velocity)])
-
         rod_state = np.concatenate(
             (
                 rod_compact_state,

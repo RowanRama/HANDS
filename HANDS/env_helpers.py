@@ -91,3 +91,25 @@ def add_finger(simulator, start, **kwargs):
         )
 
     return tensions, cosserat_rod
+
+def generate_circle_points_np(r, N, cx=0, cy=0):
+    angles = np.linspace(0, 2 * np.pi, N, endpoint=False)
+    x = cx + r * np.cos(angles)
+    y = cy + r * np.sin(angles)
+    z = angles*0
+    return np.column_stack((x, y, z))
+
+def reshape_state(state, num_fingers):
+    elements_per_finger = state.shape[0] // num_fingers
+
+    backbone_points = (elements_per_finger - 3) // 3
+
+    # Reshape and exclude targets
+    reshaped = (
+        state.reshape(num_fingers, elements_per_finger)  # Split into fingers
+        [:, :-3]                                            # Remove target columns
+        .reshape(num_fingers, 3, backbone_points)           # Final shape
+        .transpose(0, 2, 1)                                 # Rearrange to (num_fingers, backbone_points, 3)
+    )
+
+    return reshaped
