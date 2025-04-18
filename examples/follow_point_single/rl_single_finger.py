@@ -24,16 +24,24 @@ def make_env():
     #     max_tension=5,
     #     NU=30,
     # )
-    target_position = [0.10040713, 0.0, 0.22228797]
-    env = Environment(n_elem=50, mode=1, final_time= 2
-                      , target_position=target_position, gravity_enable=False)
+    # target_position = [0.10040713, 0.0, 0.22228797]
+    # env = Environment(n_elem=50, mode=1, final_time= 2
+    #                   , target_position=target_position, gravity_enable=False)
+
+    return Environment(
+        n_elem=50,
+        mode=2,  # <== this enables random targets
+        final_time=2.0,
+        gravity_enable=False
+    )
+
   
     #return Monitor(env)  # Wrap with Monitor
     return env
 
 if __name__ == "__main__":
     # Setup logging
-    log_dir = "./ppo_case1_batch16000/"
+    log_dir = "./sac/"
     os.makedirs(log_dir, exist_ok=True)
     new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
 
@@ -56,7 +64,7 @@ if __name__ == "__main__":
         policy="MlpPolicy", #ffn as value & policy
         env=env,
         learning_rate=3e-4,
-        buffer_size=100000,     # <- this matches the best curve (green)
+        buffer_size=30000,     # <- this matches the best curve (green)
         batch_size=256,          # <- reasonable default
         train_freq=1, #train once per env step (?)
         gradient_steps=1, #How many samples to draw per gradient step
@@ -71,8 +79,8 @@ if __name__ == "__main__":
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(40000)) #40k seems like a pretty good length
-    model.save(os.path.join(log_dir, "ppo_case1"))
+    model.learn(total_timesteps=int(30000)) #40k seems like a pretty good length
+    model.save(os.path.join(log_dir, "sac_case2"))
 
     # Evaluate rollout
     outputs = []
@@ -93,9 +101,11 @@ if __name__ == "__main__":
             "points_bb": info["position"],
             "time": step * dT_L,
             "tensions": action,
-            "sphere_position": env.sphere.position_collection.copy()
+            "sphere_position": env.sphere.position_collection.copy(),
+            "target_position": env.target_position.copy()  #if mode 2 then changes every episode
         }
         print("tip position:", info["position"][:, -1])
+        print("target position:", env.target_position.copy())
         if done:
             print("Episode finished")
             break

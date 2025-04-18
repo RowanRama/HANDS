@@ -9,7 +9,7 @@ model = SAC.load("./ppo_case1_batch16000/ppo_case1")
 # List of new test targets
 test_targets = [
     [0.05, 0.0, 0.22],
-    [0.1, 0.1, 0.22],
+    [0.1, 0, 0.22],
     [-0.1, 0.0, 0.22],
     [0.0, -0.1, 0.2],
     [0.0, 0.0, 0.25],  # top center
@@ -39,13 +39,17 @@ for idx, target in enumerate(test_targets):
         obs, reward, done, _, info = env.step(action)
 
         outputs.append({
+            "target": target,
+            "points_bb": info["position"],
             "step": step,
             "time": step * dT_L,
             "action": action,
             "reward": reward,
             "tip_pos": info["position"][:, -1],
+            "tensions": action,
             "sphere_pos": env.sphere.position_collection.copy()
         })
+
 
         step += 1
 

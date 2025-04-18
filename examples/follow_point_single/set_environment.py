@@ -175,6 +175,7 @@ class Environment(gymnasium.Env):
         if seed is not None:
             np.random.seed(seed)
         self.simulator = SoftRobotSimulator()
+        print("------------------ new episode -------------------")
 
         n_elem = self.n_elem
         start = np.zeros((3,))
@@ -212,6 +213,15 @@ class Environment(gymnasium.Env):
         if self.mode != 2:
             # fixed target position to reach
             target_position = self.target_position
+        elif self.mode == 2: #sample random tatgrt position
+            random_xy = np.random.uniform(low=[-0.1, -0.1], high=[0.1, 0.1])
+            self.target_position = np.zeros(3)  # Or np.array([0.0, 0.0, 0.0])
+            self.target_position[0:2] = random_xy
+            
+        
+            print("Random target position:", self.target_position)
+            target_position = self.target_position
+
 
         # initialize sphere
         self.sphere = Sphere(
@@ -471,7 +481,9 @@ class Environment(gymnasium.Env):
                 self.time_step,
             )
 
-        # # Update target position based on mode
+        # # Update target position based on 
+        
+
         # if self.mode == 3:
         #     if self.current_step % (1.0 / (self.time_step * self.num_steps_per_update)) == 0:
         #         if self.dir_indicator == 1:
@@ -499,10 +511,11 @@ class Environment(gymnasium.Env):
         state = self.get_state()
         
         # print(self.shearable_rod.position_collection[..., -1])
-        dist = np.linalg.norm(
-            self.shearable_rod.position_collection[..., -1]
-            - self.sphere.position_collection[..., 0]
-        )
+        tip_xy = self.shearable_rod.position_collection[0:2, -1]   # X and Y of rod tip
+        target_xy = self.sphere.position_collection[0:2, 0]        # X and Y of sphere
+        dist = np.linalg.norm(tip_xy - target_xy)
+        #make reward only a function of x and y
+
 
         # Reward engineering
         reward_dist = -np.square(dist).sum()
