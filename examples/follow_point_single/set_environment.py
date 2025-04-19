@@ -215,7 +215,7 @@ class Environment(gymnasium.Env):
             # fixed target position to reach
             target_position = self.target_position
         elif self.mode == 2: #sample random tatgrt position
-            random_xy = np.random.uniform(low=[-0.1, -0.1], high=[0.1, 0.1])
+            random_xy = np.random.uniform(low=[-0.15, -0.15], high=[0.15, 0.15])
             self.target_position = np.zeros(3)  # Or np.array([0.0, 0.0, 0.0])
             self.target_position[0:2] = random_xy
             

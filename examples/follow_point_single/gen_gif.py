@@ -55,6 +55,7 @@ def create_gif(outputs, gif_path="backbone_animation_RL.gif"):
 
     if "target_position" in outputs[0]:
         target_pt = outputs[0]["target_position"]
+        print("target_pt", target_pt)
         ax1.scatter(*target_pt, color='red', s=50, label='Target')
         ax2.scatter(target_pt[0], target_pt[1], color='red', s=50, label='Target')
 
@@ -127,7 +128,7 @@ def plot_trajectory_and_tensions(outputs):
 
 if __name__ == "__main__":
     # Load the outputs from the pickle file
-    outputs = load_outputs("outputs2.pkl")
+    outputs = load_outputs("sac/outputs_100k.pkl")
 
     # Create and save the GIF
     create_gif(outputs)

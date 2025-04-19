@@ -1,0 +1,84 @@
+import matplotlib.pyplot as plt
+import pickle
+import numpy as np
+from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
+
+def create_gif(backbone_points, time_stamps, gif_path="backbone_animation_RL.gif"):
+    """
+    Create a GIF of the backbone points for each instant with two views.
+    """
+    fps = 10  # Frames per second for the GIF
+    total_frames = int(time_stamps[-1] * fps)
+
+    # Sample frames
+    frame_indices = np.linspace(0, len(backbone_points) - 1, total_frames, dtype=int)
+    backbone_points = [backbone_points[i] for i in frame_indices]
+    time_stamps = [time_stamps[i] for i in frame_indices]
+
+    # Set up figure
+    fig = plt.figure(figsize=(12, 6))
+    ax1 = fig.add_subplot(121, projection='3d')
+    ax1.set_xlim([-0.25, 0.25])
+    ax1.set_ylim([-0.25, 0.25])
+    ax1.set_zlim([0, 0.25])
+    ax1.set_title('3D View')
+
+    ax2 = fig.add_subplot(122)
+    ax2.set_xlim([-0.25, 0.25])
+    ax2.set_ylim([-0.25, 0.25])
+    ax2.set_title('Top-Down View')
+
+    ax2.scatter(target_pos[0], target_pos[1], c='r', marker='x', label="Target")
+    ax2.legend()
+
+    line1, = ax1.plot([], [], [], marker='o')
+    line2, = ax2.plot([], [], marker='o')
+
+    def update(frame):
+        points = backbone_points[frame]
+        time = time_stamps[frame]
+        line1.set_data(points[0], points[1])
+        line1.set_3d_properties(points[2])
+        ax1.set_title(f"3D View - Time: {time:.2f}s")
+
+        line2.set_data(points[0], points[1])
+        ax2.set_title(f"Top-Down View - Time: {time:.2f}s")
+        return line1, line2
+
+    ani = FuncAnimation(fig, update, frames=len(backbone_points), interval=1000 / fps, blit=True)
+    ani.save(gif_path, writer='imagemagick', fps=fps)
+    print(f"GIF saved to {gif_path}")
+
+# Load rollout
+with open("sac/outputs_100k.pkl", "rb") as f:
+    results = pickle.load(f)
+
+print(f"Loaded {len(results)} steps")
+
+# Extract data
+for episode in results:
+    #print(episode)
+    #print(f"Episode: {episode['episode']}, Time: {episode['time']:.2f}s, Tip Position: {episode['points_bb'][:, -1]}")
+    tip_positions = np.array([step["points_bb"][:, -1] for step in episode])
+    backbone_points = [step["points_bb"] for step in episode]
+    time_stamps = [step["time"] for step in episode]
+    target_pos = episode[0]["target_position"]
+    print("target_pos", target_pos)
+    print("reward", episode[-1]["reward"])
+    print("------")
+
+    # Create GIF
+    create_gif(backbone_points, time_stamps, gif_path=f"new_backbone_animation_{target_pos}.gif")
+
+    # Plot 3D tip trajectory
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(tip_positions[:, 0], tip_positions[:, 1], tip_positions[:, 2], label="Tip Trajectory")
+    ax.scatter(*target_pos, c='r', label="Target", marker='x')
+    ax.set_title("Tip Trajectory to Target")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.legend()
+    plt.show()

@@ -33,10 +33,10 @@ def make_env():
         mode=2,  # random target every reset
         final_time=2.0,
         gravity_enable=False,
-        max_tension=5.0,
+        max_tension=8.0,
         num_steps_per_update=75,  # Steps per action hold
-        E = 1e6
-        
+        E = 5e6
+
     )
 
   
@@ -68,11 +68,11 @@ if __name__ == "__main__":
         policy="MlpPolicy", #ffn as value & policy
         env=env,
         learning_rate=3e-4,
-        buffer_size=30000,     # <- this matches the best curve (green)
+        buffer_size=100000,     # <- this matches the best curve (green)
         batch_size=256,          # <- reasonable default
         train_freq=1, #train once per env step (?)
         gradient_steps=1, #How many samples to draw per gradient step
-        learning_starts=500, #How many steps of the model to collect transitions for before learning starts
+        learning_starts=5000, #How many steps of the model to collect transitions for before learning starts
         gamma=0.99,
         tau=0.005,
         verbose=1,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(3000)) #40k seems like a pretty good length
+    model.learn(total_timesteps=int(100000)) #40k seems like a pretty good length
     model.save(os.path.join(log_dir, "sac_case2"))
 
     # Evaluate rollout
@@ -117,5 +117,5 @@ if __name__ == "__main__":
         step += 1
 
     # Save rollout
-    with open(os.path.join(log_dir, "outputs.pkl"), "wb") as f:
+    with open(os.path.join(log_dir, "outputs_100k.pkl"), "wb") as f:
         pickle.dump(outputs, f)
