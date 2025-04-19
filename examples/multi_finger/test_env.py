@@ -43,7 +43,7 @@ def point_fn(time, total_time):
 def test_environment():
     num_fingers = 4
     total_time = 5  # Total time for the simulation
-    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False)
+    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False, cylinder_enabled=True)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
@@ -69,6 +69,8 @@ def test_environment():
             "done": done,
             "time": step * dT_L,
             "num_fingers": num_fingers,
+            "cylinder_position": additional_info["cylinder_position"],
+            "cylinder_director": additional_info["cylinder_director"]
         }
         outputs.append(step_data)
         if done:
