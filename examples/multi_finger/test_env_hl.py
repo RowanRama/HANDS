@@ -55,9 +55,13 @@ def test_environment():
     num_steps = int(total_time/(time_step*steps_per_tension_update*controller_steps_per_convergence)) # Number of steps in the simulation
     cylinder_enabled = True
     
-    env = HLControlEnv(reward_function, done_function, convergence_steps=controller_steps_per_convergence,
+    env = HLControlEnv(
+        reward_function, 
+        done_function, 
+        convergence_steps=controller_steps_per_convergence,
         final_time= total_time,
         num_fingers=num_fingers, 
+        num_steps_per_update=steps_per_tension_update,
         finger_radius= 0.1, 
         gravity=False, 
         cylinder_enabled=cylinder_enabled)
@@ -75,12 +79,12 @@ def test_environment():
         
         state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
     
-        outputs.extend(additional_info["intermediate"])
+        outputs.extend(additional_info["data"])
         if done:
             print("Episode finished")
             break
         
-    #print(outputs)
+    print(outputs)
     return outputs  # Return the collected outputs for plotting or further analysis
 
 def plot_results(outputs):
