@@ -158,6 +158,6 @@ if __name__ == "__main__":
     # plot_results(outputs)
     # save outputs to pickle file
     
-    with open('outputs2.pkl', 'wb') as f:
+    with open('multi_hl.pkl', 'wb') as f:
         pickle.dump(outputs, f)
         
