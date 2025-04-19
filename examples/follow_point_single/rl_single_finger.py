@@ -34,7 +34,9 @@ def make_env():
         final_time=2.0,
         gravity_enable=False,
         max_tension=5.0,
-        num_steps_per_update=100  # Steps per action hold
+        num_steps_per_update=75,  # Steps per action hold
+        E = 1e6
+        
     )
 
   

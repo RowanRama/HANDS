@@ -87,6 +87,7 @@ class Environment(gymnasium.Env):
         sphere_initial_velocity=0.1,
         gravity_enable = True,  # Enable gravity by default
         COLLECT_DATA_FOR_POSTPROCESSING=False,
+        E = 16.598637e6,
         *args,
         **kwargs,
     ):
@@ -159,7 +160,7 @@ class Environment(gymnasium.Env):
 
         self.time_tracker = np.float64(0.0)
 
-        self.E = kwargs.get("E", 16.598637e6)
+        self.E = E
 
         self.NU = kwargs.get("NU", 0.4)
 

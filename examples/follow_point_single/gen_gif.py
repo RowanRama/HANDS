@@ -127,7 +127,7 @@ def plot_trajectory_and_tensions(outputs):
 
 if __name__ == "__main__":
     # Load the outputs from the pickle file
-    outputs = load_outputs("ppo_case1_batch16000/outputs.pkl")
+    outputs = load_outputs("outputs2.pkl")
 
     # Create and save the GIF
     create_gif(outputs)

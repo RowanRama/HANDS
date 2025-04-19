@@ -41,7 +41,7 @@ def tension_function(t):
 def test_environment():
     #potential position tip position: [0.0472453  0.         0.24422374]
     target_position = [0.10040713, 0.0, 0.22228797]
-    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=target_position, gravity_enable=False)
+    env = Environment(n_elem=50, mode=1, final_time= 2, target_position=target_position, gravity_enable=False, E=1.0e6)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
