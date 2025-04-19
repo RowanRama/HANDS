@@ -21,7 +21,7 @@ class PIDController(BaseController):
     """
     A PID controller for controlling the soft manipulator.
     """
-    def __init__(self, Kp = 3.0, Ki = 30.0, Kd = 0.0, max_tension = 10.0):
+    def __init__(self, Kp = 15.0, Ki = 20.0, Kd = 0.0, max_tension = 10.0):
         """
         Initialize the PID controller.
         
