@@ -16,80 +16,127 @@ def load_outputs(file_path):
 
 
 
-def create_gif(outputs, gif_path="backbone_animation.gif"):
+def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
     """
-    Create a GIF of the backbone points for each instant with two views.
+    Create a GIF of the backbone points and the cylinder for each instant with two views.
     """
     simulation_duration = outputs[-1]['time']
-    # Extract the backbone points for each step
-    states = [np.array(data['state']) for data in outputs]
-    # Extract the time stamps for the frames
     time_stamps = [data['time'] for data in outputs]
-    num_fingers = outputs[0]['num_fingers']
+    num_fingers = outputs[0].get('num_fingers', 1)
+    states = [reshape_state(np.array(data['state']), num_fingers) for data in outputs]
 
-    states = np.array([reshape_state(state, num_fingers) for state in states])
-    # Calculate the total number of frames for the GIF
-    fps = 10  # Frames per second for the GIF
+    cylinder_centers = [data.get("cylinder_position") for data in outputs]
+    cylinder_directions = [data.get("cylinder_director")[2, ...] for data in outputs]
+    cylinder_radius = 0.02
+    cylinder_length = 0.2
+
+    fps = 10
     total_frames = int(simulation_duration * fps)
-
-    # Sample frames to match the desired duration
     frame_indices = np.linspace(0, len(states) - 1, total_frames, dtype=int)
-    states = np.array([states[i] for i in frame_indices])
 
+    states = [states[i] for i in frame_indices]
     time_stamps = [time_stamps[i] for i in frame_indices]
+    cylinder_centers = [cylinder_centers[i] for i in frame_indices]
+    cylinder_directions = [cylinder_directions[i] for i in frame_indices]
 
-    # Set up the figure and 3D axes
     fig = plt.figure(figsize=(12, 6))
-
-    # First subplot: 3D view
     ax1 = fig.add_subplot(121, projection='3d')
     ax1.set_xlim([-0.25, 0.25])
     ax1.set_ylim([-0.25, 0.25])
     ax1.set_zlim([0, 0.25])
-    ax1.set_xlabel('X Position')
-    ax1.set_ylabel('Y Position')
-    ax1.set_zlabel('Z Position')
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+    ax1.set_zlabel('Z')
     ax1.set_title('3D View')
 
-    # Second subplot: Top-down view (-z axis)
     ax2 = fig.add_subplot(122)
     ax2.set_xlim([-0.25, 0.25])
     ax2.set_ylim([-0.25, 0.25])
-    ax2.set_xlabel('X Position')
-    ax2.set_ylabel('Y Position')
+    ax2.set_xlabel('X')
+    ax2.set_ylabel('Y')
     ax2.set_title('Top-Down View (-Z Axis)')
 
-    # Initialize the line objects
-    line1 = []
-    line2 = []
-    for i in range(num_fingers):
-        line1.append(ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)[0])
-        line2.append(ax2.plot([], [], marker='o', linestyle='-', alpha=0.7)[0])
+    # Finger visuals
+    lines_3d = [ax1.plot([], [], [], marker='o', linestyle='-')[0] for _ in range(num_fingers)]
+    lines_2d = [ax2.plot([], [], marker='o', linestyle='-')[0] for _ in range(num_fingers)]
+    cylinder_surface = None
+    rectangle_patch = None
 
     def update(frame):
-        """
-        Update function for the animation.
-        """
+        nonlocal cylinder_surface, rectangle_patch
 
         state = states[frame]
+        cyl_center = np.reshape(cylinder_centers[frame], (3,))
+        cyl_dir = np.reshape(cylinder_directions[frame], (3,))
+        cyl_dir = cyl_dir / np.linalg.norm(cyl_dir)
 
-        # Update 3D view
-        for i in range(state.shape[0]):
-            line1[i].set_data(state[i, :, 0], state[i, :, 1])
-            line1[i].set_3d_properties(state[i, :, 2])
-            line2[i].set_data(state[i, :, 0], state[i, :, 1])
+        z_axis = np.array([0, 0, 1])
+        rotation_angle = np.arccos(np.clip(np.dot(z_axis, cyl_dir), -1.0, 1.0))
+        rotation_axis = np.cross(z_axis, cyl_dir)
+        if np.linalg.norm(rotation_axis) > 1e-6:
+            rotation_axis = rotation_axis / np.linalg.norm(rotation_axis)
+            rotation = R.from_rotvec(rotation_angle * rotation_axis)
+            rotation_matrix = rotation.as_matrix()
+        else:
+            rotation_matrix = np.eye(3)
 
-        ax1.set_title(f"3D View - Time: {time_stamps[frame]:.2f} s")
-        ax2.set_title(f"Top-Down View - Time: {time_stamps[frame]:.2f} s")
+        # Clear cylinder surface if it exists
+        if cylinder_surface:
+            cylinder_surface.remove()
+        if rectangle_patch:
+            rectangle_patch.remove()
 
-        return line1, line2
+        # Plot finger states
+        for i, rod in enumerate(state):
+            lines_3d[i].set_data(rod[:, 0], rod[:, 1])
+            lines_3d[i].set_3d_properties(rod[:, 2])
+            lines_2d[i].set_data(rod[:, 0], rod[:, 1])
 
-    # Create the animation
+        ax1.set_title(f"3D View - Time: {time_stamps[frame]:.2f}s")
+        ax2.set_title(f"Top-Down - Time: {time_stamps[frame]:.2f}s")
+
+        # Create the cylinder surface in 3D
+        theta = np.linspace(0, 2 * np.pi, 50)
+        z = np.linspace(-cylinder_length / 2, cylinder_length / 2, 20)
+        theta_grid, z_grid = np.meshgrid(theta, z)
+        x_grid = cylinder_radius * np.cos(theta_grid)
+        y_grid = cylinder_radius * np.sin(theta_grid)
+
+        coords = np.dot(rotation_matrix, np.array([x_grid.flatten(), y_grid.flatten(), z_grid.flatten()]))
+        x = coords[0].reshape(x_grid.shape) + cyl_center[0]
+        y = coords[1].reshape(y_grid.shape) + cyl_center[1]
+        z = coords[2].reshape(z_grid.shape) + cyl_center[2]
+
+        cylinder_surface = ax1.plot_surface(x, y, z, alpha=0.3, color='b')
+
+        # 2D Rectangle in top-down view
+        cyl_dir_xy = cyl_dir[:2]
+        if np.linalg.norm(cyl_dir_xy) < 1e-6:
+            cyl_dir_xy = np.array([1.0, 0.0])
+        else:
+            cyl_dir_xy = cyl_dir_xy / np.linalg.norm(cyl_dir_xy)
+
+        perp_dir = np.array([-cyl_dir_xy[1], cyl_dir_xy[0]])
+        half_l = cylinder_length / 2
+        half_w = cylinder_radius
+        c = cyl_center[:2]
+
+        corners = [
+            c + half_l * cyl_dir_xy + half_w * perp_dir,
+            c + half_l * cyl_dir_xy - half_w * perp_dir,
+            c - half_l * cyl_dir_xy - half_w * perp_dir,
+            c - half_l * cyl_dir_xy + half_w * perp_dir,
+            c + half_l * cyl_dir_xy + half_w * perp_dir,
+        ]
+        corners = np.array(corners)
+        rectangle_patch, = ax2.plot(corners[:, 0], corners[:, 1], color='b', alpha=0.7)
+
+        return lines_3d + lines_2d + [cylinder_surface, rectangle_patch]
+
     ani = FuncAnimation(fig, update, frames=len(states), interval=1000 / fps, blit=False)
-
-    # Save the animation as a GIF
     ani.save(gif_path, writer='imagemagick', fps=fps)
     print(f"GIF saved to {gif_path}")
+
 
 def plot_trajectory_and_tensions(outputs):
     """

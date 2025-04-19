@@ -45,7 +45,8 @@ def test_environment():
     total_time = 5  # Total time for the simulation
     steps_per_tension_update = 100  # Number of steps per tension update
     controller_steps_per_convergence = 100
-    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False)
+    cylinder_enabled = True
+    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False, cylinder_enabled=cylinder_enabled, num_steps_per_update=steps_per_tension_update, tension_function=None, cylinder_radius=0.01, cylinder_length=0.25, cylinder_position=np.array([0.0, 0.0, 0.0]), cylinder_director=np.array([1.0, 0.0, 0.0]), cylinder_color="blue", cylinder_transparency=1.0)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
@@ -76,6 +77,11 @@ def test_environment():
                 "time": (hl_step * controller_steps_per_convergence + ll_step) * dT_L,
                 "num_fingers": num_fingers,
             }
+
+            if cylinder_enabled:
+                step_data["cylinder_position"] = additional_info["cylinder_position"]
+                step_data["cylinder_director"] = additional_info["cylinder_director"]
+
             outputs.append(step_data)
             if done:
                 print("Episode finished")
