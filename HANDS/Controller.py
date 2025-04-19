@@ -68,7 +68,7 @@ class PIDController(BaseController):
         error = current_tip_position - goal_tip_position
         #dt = current_time - self._last_time if self._last_time is not None else 0
 
-        print(f"Error: {error}, dt: {dt}")
+        # print(f"Error: {error}, dt: {dt}")
         # Proportional term
         P = self.Kp * error
 
