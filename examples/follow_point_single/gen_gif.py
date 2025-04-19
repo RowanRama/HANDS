@@ -16,6 +16,7 @@ def create_gif(outputs, gif_path="backbone_animation_RL.gif"):
     """
     Create a GIF of the backbone points for each instant with two views.
     """
+   
     simulation_duration = outputs[-1]['time']
     # Extract the backbone points for each step
     backbone_points = [data['points_bb'] for data in outputs]
@@ -51,6 +52,12 @@ def create_gif(outputs, gif_path="backbone_animation_RL.gif"):
     ax2.set_xlabel('X Position')
     ax2.set_ylabel('Y Position')
     ax2.set_title('Top-Down View (-Z Axis)')
+
+    if "target_position" in outputs[0]:
+        target_pt = outputs[0]["target_position"]
+        ax1.scatter(*target_pt, color='red', s=50, label='Target')
+        ax2.scatter(target_pt[0], target_pt[1], color='red', s=50, label='Target')
+
 
     # Initialize the line objects
     line1, = ax1.plot([], [], [], marker='o', linestyle='-', alpha=0.7)

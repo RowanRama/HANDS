@@ -161,7 +161,7 @@ class Environment(gymnasium.Env):
 
         self.E = kwargs.get("E", 16.598637e6)
 
-        self.NU = kwargs.get("NU", 0.1)
+        self.NU = kwargs.get("NU", 0.4)
 
         self.max_rate_of_change_of_activation = kwargs.get(
             "max_rate_of_change_of_activation", np.infty

@@ -30,9 +30,11 @@ def make_env():
 
     return Environment(
         n_elem=50,
-        mode=2,  # <== this enables random targets
+        mode=2,  # random target every reset
         final_time=2.0,
-        gravity_enable=False
+        gravity_enable=False,
+        max_tension=5.0,
+        num_steps_per_update=100  # Steps per action hold
     )
 
   
@@ -68,7 +70,7 @@ if __name__ == "__main__":
         batch_size=256,          # <- reasonable default
         train_freq=1, #train once per env step (?)
         gradient_steps=1, #How many samples to draw per gradient step
-        learning_starts=1500, #How many steps of the model to collect transitions for before learning starts
+        learning_starts=500, #How many steps of the model to collect transitions for before learning starts
         gamma=0.99,
         tau=0.005,
         verbose=1,
@@ -79,7 +81,7 @@ if __name__ == "__main__":
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(30000)) #40k seems like a pretty good length
+    model.learn(total_timesteps=int(3000)) #40k seems like a pretty good length
     model.save(os.path.join(log_dir, "sac_case2"))
 
     # Evaluate rollout
