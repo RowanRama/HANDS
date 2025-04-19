@@ -656,7 +656,6 @@ class HLControlEnv(MultipleFinger):
     def __init__(
             self, 
             reward_function, 
-            done_function,
             convergence_steps=200,
             save_logs=True,
             **kwargs):
@@ -665,7 +664,6 @@ class HLControlEnv(MultipleFinger):
         self.convergence_steps = convergence_steps
         self.step_count = 0
         self.save_logs = save_logs
-        self.done_function = done_function
         self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
 
     def reset(self):
@@ -700,6 +698,7 @@ class HLControlEnv(MultipleFinger):
         """
         state, reward, done, info = None, None, False, None
         intermediate = []
+        done = False
 
         for i in range(self.convergence_steps):
             state, reward, done, info = super().step(action)
@@ -727,7 +726,10 @@ class HLControlEnv(MultipleFinger):
         self.step_count += 1
 
         # Check if the episode is done
-        done = done or self.done_function(state, action, info)
+        if self.step_count >= self.total_learning_steps:
+            done = True
+
+        #done = done or self.done_function(state, action, info)
 
         # Calculate the reward using the provided reward function
         reward = self.reward_function(state, action, info)
