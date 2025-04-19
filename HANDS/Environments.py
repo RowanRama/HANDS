@@ -542,8 +542,6 @@ class MultipleFinger(gymnasium.Env):
         self.current_step = 0
         # reset time_tracker
         self.time_tracker = np.float64(0.0)
-        # reset previous_action
-        self.previous_action = None
 
         # After resetting the environment return state information
         return state
@@ -635,8 +633,6 @@ class MultipleFinger(gymnasium.Env):
         #         )
         """ Done is a boolean to reset the environment before episode is completed """
 
-        self.previous_action = action
-
         extra_info = {"time": self.time_tracker}
 
         if self.sphere_enabled:
@@ -651,3 +647,96 @@ class MultipleFinger(gymnasium.Env):
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
         pass
+
+class HLControlEnv(MultipleFinger):
+    """
+    Class representing a high-level control environment for the soft manipulator.
+    """
+
+    def __init__(
+            self, 
+            reward_function, 
+            done_function,
+            convergence_steps=200,
+            save_logs=True,
+            **kwargs):
+        super(HLControlEnv, self).__init__(**kwargs)
+        self.reward_function = reward_function
+        self.convergence_steps = convergence_steps
+        self.step_count = 0
+        self.save_logs = save_logs
+        self.done_function = done_function
+        self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
+
+    def reset(self):
+        """
+        Reset the environment to its initial state.
+
+        :return: Initial observation of the environment.
+        """
+        self.step_count = 0
+        self.outputs = []  # Initialize outputs for each episode
+        return super().reset()
+    
+    def step(self, action):
+        """
+        Execute one step in the environment.
+        
+        Parameters
+        ----------
+        action : numpy.ndarray
+            Array of target coordinates for the fingers.
+            
+        Returns
+        -------
+        state : numpy.ndarray
+            Current state of the system
+        reward : float
+            Reward value
+        done : bool
+            Whether the episode is finished
+        info : dict
+            Additional information
+        """
+        state, reward, done, info = None, None, False, None
+        intermediate = []
+
+        for i in range(self.convergence_steps):
+            state, reward, done, info = super().step(action)
+
+            if self.save_logs:
+                step_data = {
+                    "step": (self.step_count * self.convergence_steps + i),
+                    "action": action,
+                    "state": state,
+                    "reward": reward,
+                    "done": done,
+                    "time": (self.step_count * self.convergence_steps + i) * self.dt_L,
+                    "num_fingers": self.num_fingers,
+                }
+
+                if self.cylinder_enabled:
+                    step_data["cylinder_position"] = info["cylinder_position"]
+                    step_data["cylinder_director"] = info["cylinder_director"]
+
+                intermediate.append(step_data)
+        
+            if done:
+                break
+        
+        self.step_count += 1
+
+        # Check if the episode is done
+        done = done or self.done_function(state, action, info)
+
+        # Calculate the reward using the provided reward function
+        reward = self.reward_function(state, action, info)
+
+        info["data"] = intermediate
+        
+        return state, reward, done, info
+
+    def render(self, mode="human"):
+        """Render the environment (not implemented)."""
+        pass
+
