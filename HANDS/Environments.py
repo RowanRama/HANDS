@@ -375,7 +375,7 @@ class MultipleFinger(gymnasium.Env):
                 "direction": np.array([0.0, 1.0, 0.0]),
                 "normal": np.array([0.0, 0.0, 1.0]),
                 "radius": 0.002,
-                "start_pos": np.array([0.0, 0.0, 0.2]),
+                "start_pos": np.array([0.0, 0.0, 0.8]),
                 "k": 1e4,
                 "nu": 10,
                 "density": 1000,
@@ -419,9 +419,9 @@ class MultipleFinger(gymnasium.Env):
         print("Total learning steps", self.total_learning_steps)
 
         # Define action space (4 tension values)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(num_fingers,2), dtype=np.float32)
+        self.action_space = spaces.Box(low=-.3, high=.3, shape=(num_fingers,2), dtype=np.float32)
 
-        self.obs_state_points = 10
+        self.obs_state_points = 2
         num_points = int(self.n_elem / self.obs_state_points)
         num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
 
@@ -430,7 +430,7 @@ class MultipleFinger(gymnasium.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(num_rod_state * 3 + 3,),
+            shape=(num_fingers * 3,),
             dtype=np.float64,
         )
 
@@ -677,6 +677,15 @@ class HLControlEnv(MultipleFinger):
         self.save_logs = save_logs
         self.target_angle = 30
         self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
+        self.time_points = 4
+
+        # need to update observation space to have points over time
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(self.num_fingers * self.time_points * 3,),
+            dtype=np.float64,
+        )
 
     def reset(self, *, seed=None, options=None):
 
@@ -713,9 +722,15 @@ class HLControlEnv(MultipleFinger):
         state, reward, done, info = None, None, False, None
         intermediate = []
         done = False
+        state_cat = np.zeros((0,))
 
-        for i in range(self.convergence_steps):
+        time_steps = self.convergence_steps // self.time_points
+
+        for i in range(1, self.convergence_steps+1):
             state, reward, done, info = super().step(action)
+            
+            if i % time_steps == 0:
+                state_cat = np.concatenate((state_cat, state), axis=0)
 
             if self.save_logs:
                 step_data = {
@@ -752,7 +767,7 @@ class HLControlEnv(MultipleFinger):
         terminated = done
         truncated = False
         
-        return state, reward, terminated, truncated, info
+        return state_cat, reward, terminated, truncated, info
 
 
     def render(self, mode="human"):

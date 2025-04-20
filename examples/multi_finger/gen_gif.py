@@ -177,8 +177,18 @@ def plot_trajectory_and_tensions(outputs):
     plt.show()
 
 if __name__ == "__main__":
-    # Load the outputs from the pickle file
-    outputs = load_outputs("outputs2.pkl")
+    import sys
+    
+    # Use first command line argument as file name if provided, otherwise use default
+    file_name = sys.argv[1] if len(sys.argv) > 1 else "outputs2.pkl"
+    
+    try:
+        # Load the outputs from the pickle file
+        outputs = load_outputs(file_name)
+        print(f"Loading data from {file_name}")
+    except FileNotFoundError:
+        print(f"File {file_name} not found, falling back to outputs2.pkl")
+        outputs = load_outputs("outputs2.pkl")
 
     # Create and save the GIF
     create_gif(outputs)
