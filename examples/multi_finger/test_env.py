@@ -43,7 +43,10 @@ def point_fn(time, total_time):
 def test_environment():
     num_fingers = 4
     total_time = 5  # Total time for the simulation
-    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False)
+    steps_per_tension_update = 100  # Number of steps per tension update
+    controller_steps_per_convergence = 1000
+    cylinder_enabled = True
+    env = MultipleFinger(final_time= total_time, num_fingers=num_fingers, finger_radius= 0.1, gravity=False, cylinder_enabled=cylinder_enabled, num_steps_per_update=steps_per_tension_update, tension_function=None, cylinder_radius=0.01, cylinder_length=0.25, cylinder_position=np.array([0.0, 0.0, 0.0]), cylinder_director=np.array([1.0, 0.0, 0.0]), cylinder_color="blue", cylinder_transparency=1.0)
     dT_L = env.time_step*env.num_steps_per_update # The effective time step for the tension function
     
     state = env.reset() #initializes with params
@@ -54,26 +57,35 @@ def test_environment():
     # Initialize the PID controller with gains
 
     
-    for step in tqdm(range(num_steps)):
+    for hl_step in tqdm(range(num_steps//controller_steps_per_convergence)):
+
+        point_to_go = [point_fn(hl_step*controller_steps_per_convergence*dT_L, total_time)] * num_fingers
+
+        for ll_step in range(controller_steps_per_convergence):
         # action = np.random.uniform(0, env.max_tension, size=(4,))  # Random action
         # action = tension_function(step * dT_L, state)  # Use the tension function to get the action for this step
-        point_to_go = [point_fn(step*dT_L, total_time)] * num_fingers
-        state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
         
-        # print(f"Step {step}: Reward = {reward}, State = {state}")
-        step_data = {
-            "step": step,
-            "action": point_to_go,
-            "state": state,
-            "reward": reward,
-            "done": done,
-            "time": step * dT_L,
-            "num_fingers": num_fingers,
-        }
-        outputs.append(step_data)
-        if done:
-            print("Episode finished")
-            break
+            state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
+        
+            # print(f"Step {step}: Reward = {reward}, State = {state}")
+            step_data = {
+                "step": (hl_step * controller_steps_per_convergence + ll_step),
+                "action": point_to_go,
+                "state": state,
+                "reward": reward,
+                "done": done,
+                "time": (hl_step * controller_steps_per_convergence + ll_step) * dT_L,
+                "num_fingers": num_fingers,
+            }
+
+            if cylinder_enabled:
+                step_data["cylinder_position"] = additional_info["cylinder_position"]
+                step_data["cylinder_director"] = additional_info["cylinder_director"]
+
+            outputs.append(step_data)
+            if done:
+                print("Episode finished")
+                break
         # if step*dT_L > 1.95:
         #     print(state)
         

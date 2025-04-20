@@ -371,7 +371,7 @@ class MultipleFinger(gymnasium.Env):
                 "direction": np.array([0.0, 1.0, 0.0]),
                 "normal": np.array([0.0, 0.0, 1.0]),
                 "radius": 0.002,
-                "start_pos": np.array([0.0, 0.0, 0.2]),
+                "start_pos": np.array([0.0, 0.0, 0.8]),
                 "k": 1e4,
                 "nu": 10,
                 "density": 1000,
@@ -415,9 +415,9 @@ class MultipleFinger(gymnasium.Env):
         print("Total learning steps", self.total_learning_steps)
 
         # Define action space (4 tension values)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-.3, high=.3, shape=(num_fingers,2), dtype=np.float32)
 
-        self.obs_state_points = 10
+        self.obs_state_points = 2
         num_points = int(self.n_elem / self.obs_state_points)
         num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
 
@@ -426,7 +426,7 @@ class MultipleFinger(gymnasium.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(num_rod_state * 3 + 3,),
+            shape=(num_fingers * 3,),
             dtype=np.float64,
         )
 
@@ -542,8 +542,6 @@ class MultipleFinger(gymnasium.Env):
         self.current_step = 0
         # reset time_tracker
         self.time_tracker = np.float64(0.0)
-        # reset previous_action
-        self.previous_action = None
 
         # After resetting the environment return state information
         return state
@@ -635,8 +633,6 @@ class MultipleFinger(gymnasium.Env):
         #         )
         """ Done is a boolean to reset the environment before episode is completed """
 
-        self.previous_action = action
-
         extra_info = {"time": self.time_tracker}
 
         if self.sphere_enabled:
@@ -651,3 +647,111 @@ class MultipleFinger(gymnasium.Env):
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
         pass
+
+class HLControlEnv(MultipleFinger):
+    """
+    Class representing a high-level control environment for the soft manipulator.
+    """
+
+    def __init__(
+            self, 
+            reward_function, 
+            done_function,
+            convergence_steps=200,
+            save_logs=True,
+            **kwargs):
+        super(HLControlEnv, self).__init__(**kwargs)
+        self.reward_function = reward_function
+        self.convergence_steps = convergence_steps
+        self.step_count = 0
+        self.save_logs = save_logs
+        self.done_function = done_function
+        self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
+        self.time_points = 4
+
+        # need to update observation space to have points over time
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(self.num_fingers * self.time_points * 3,),
+            dtype=np.float64,
+        )
+
+    def reset(self):
+        """
+        Reset the environment to its initial state.
+
+        :return: Initial observation of the environment.
+        """
+        self.step_count = 0
+        self.outputs = []  # Initialize outputs for each episode
+        return super().reset()
+    
+    def step(self, action):
+        """
+        Execute one step in the environment.
+        
+        Parameters
+        ----------
+        action : numpy.ndarray
+            Array of target coordinates for the fingers.
+            
+        Returns
+        -------
+        state : numpy.ndarray
+            Current state of the system
+        reward : float
+            Reward value
+        done : bool
+            Whether the episode is finished
+        info : dict
+            Additional information
+        """
+        state, reward, done, info = None, None, False, None
+        intermediate = []
+        state_cat = np.zeros((0,))
+
+        time_steps = self.convergence_steps // self.time_points
+
+        for i in range(1, self.convergence_steps+1):
+            state, reward, done, info = super().step(action)
+            
+            if i % time_steps == 0:
+                state_cat = np.concatenate((state_cat, state), axis=0)
+
+            if self.save_logs:
+                step_data = {
+                    "step": (self.step_count * self.convergence_steps + i),
+                    "action": action,
+                    "state": state,
+                    "reward": reward,
+                    "done": done,
+                    "time": (self.step_count * self.convergence_steps + i) * self.dt_L,
+                    "num_fingers": self.num_fingers,
+                }
+
+                if self.cylinder_enabled:
+                    step_data["cylinder_position"] = info["cylinder_position"]
+                    step_data["cylinder_director"] = info["cylinder_director"]
+
+                intermediate.append(step_data)
+        
+            if done:
+                break
+        
+        self.step_count += 1
+
+        # Check if the episode is done
+        done = done or self.done_function(state, action, info)
+
+        # Calculate the reward using the provided reward function
+        reward = self.reward_function(state, action, info)
+
+        info["data"] = intermediate
+        
+        return state_cat, reward, done, info
+
+    def render(self, mode="human"):
+        """Render the environment (not implemented)."""
+        pass
+
