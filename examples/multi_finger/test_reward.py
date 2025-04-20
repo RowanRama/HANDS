@@ -1,6 +1,9 @@
 from HANDS.Environments import HLControlEnv
 from HANDS.env_helpers import reshape_state
-
+from stable_baselines3 import SAC
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.logger import configure
 # test_env.py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +12,7 @@ from tqdm import tqdm
 # minimum timestep can be calculated using this:
 # dtmax = (base_length/n_elements) * np.sqrt(density / max(youngs_modulus, shear_modulus)) # Maximum size of time step
 import pickle
+import os
 
 # List of points to go in X-Y plane
 points_to_go = np.array([
@@ -63,11 +67,7 @@ def reward_function(state, action, info, target_orientation):
     return reward
 
 
-
-def done_function(state, action, info):
-    return False
-
-def test_environment():
+def make_env():
     target_angle = 30  # Target orientation in world coordinates
     num_fingers = 4
     total_time = 5  # Total time for the simulation
@@ -77,8 +77,6 @@ def test_environment():
     num_steps = int(total_time/(time_step*steps_per_tension_update*controller_steps_per_convergence)) # Number of steps in the simulation
     cylinder_enabled = True
 
-
-    
     env = HLControlEnv(
         reward_function, 
         convergence_steps=controller_steps_per_convergence,
@@ -89,26 +87,101 @@ def test_environment():
         gravity=False, 
         target_angle=30,
         cylinder_enabled=cylinder_enabled)
+    return env
     
-    state = env.reset() #initializes with params
+
+def done_function(state, action, info):
+    return False
+
+
+def get_model(env):
+
+    log_dir = "./ppo_case1_batch16000/"
+    os.makedirs(log_dir, exist_ok=True)
+    new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
+
+    model = SAC(
+        policy="MlpPolicy",
+        env=env,
+        learning_rate=3e-4,
+        buffer_size=500000,     # <- this matches the best curve (green)
+        batch_size=256,          # <- reasonable default
+        train_freq=1,
+        gradient_steps=1,
+        gamma=0.99,
+        tau=0.005,
+        verbose=1,
+        tensorboard_log=log_dir,
+    )
+    
+
+    model.set_logger(new_logger)
+
+    model.learn(total_timesteps=int(5000))
+    model.save(os.path.join(log_dir, "sac"))
+    return model
+
+def test_environment():
+    env = make_env()
+    state = env.reset() #initializes with param
+    model = get_model(env)
 
     outputs = []  # Store the outputs for each step
-    
-    # Initialize the PID controller with gains
 
-    
-    for hl_step in tqdm(range(num_steps)):
 
-        point_to_go = [points_to_go[hl_step%len(points_to_go)]] * num_fingers
+    # Evaluate rollout
+    outputs = []
+    obs, _ = env.reset()
+    done = False
+    step = 0
+    dT_L = env.time_step * env.num_steps_per_update
+
+    while not done:
+        action, _states = model.predict(obs, deterministic=True) #action space should be 4, 2
+        obs, reward, done, _, info = env.step(action)
+
+        step_data = {
+            "step": step,
+            "action": action,
+            "state": obs,
+            "reward": reward,
+            "points_bb": info["position"],
+            "time": step * dT_L,
+            "tensions": action,
+            "sphere_position": env.sphere.position_collection.copy()
+        }
+        outputs.append(step_data)
+        step += 1
+
+
+
+            
+        print(outputs)
+        return outputs 
+
+    # Save rollout
+    with open(os.path.join(log_dir, "sac_hl.pkl"), "wb") as f:
+        pickle.dump(outputs, f)
+
+
+
+
+
+
+
+    # # Initialize the PID controller with gains 
+    # for hl_step in tqdm(range(env.num_steps)):
+
+    #     point_to_go = [points_to_go[hl_step%len(points_to_go)]] * env.num_fingers
         
-        state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
+    #     state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
     
-        outputs.extend(additional_info["data"])
-        if done:
-            print("Episode finished")
-            break
+    #     outputs.extend(additional_info["data"])
+    #     if done:
+    #         print("Episode finished")
+    #         break
         
-    print(outputs)
+    # print(outputs)
     return outputs  # Return the collected outputs for plotting or further analysis
 
 def plot_results(outputs):
@@ -176,12 +249,27 @@ def plot_results(outputs):
 
     # plt.show()
     
+
 if __name__ == "__main__":
-    outputs = test_environment()
-    print("tested")
-    # plot_results(outputs)
-    # save outputs to pickle file
+    # Setup logging
+    log_dir = "./ppo_case1_batch16000/"
+    os.makedirs(log_dir, exist_ok=True)
+    new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
+
+    env = make_env()
+    test_environment()
+
+    # model = PPO(
+    #     policy="MlpPolicy",
+    #     env=env,
+    #     verbose=1,
+    #     tensorboard_log=log_dir,
+    #     n_steps=16000,        # <- match paper
+    #     batch_size=4000,      # <- must divide n_steps
+    #     gae_lambda=0.95,
+    #     gamma=0.99,
+    #     ent_coef=0.01,
+    #     learning_rate=3e-4,
+    # )
+
     
-    with open('outputs2.pkl', 'wb') as f:
-        pickle.dump(outputs, f)
-        

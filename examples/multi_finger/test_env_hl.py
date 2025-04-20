@@ -70,7 +70,7 @@ def test_environment():
 
     outputs = []  # Store the outputs for each step
     
-    # Initialize the PID controller with gains
+    # Initialize the PID contaroller with gains
 
     
     for hl_step in tqdm(range(num_steps)):
