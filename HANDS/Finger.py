@@ -43,7 +43,7 @@ class Finger:
         self.kwargs = kwargs
 
         self.n_elem = kwargs.get("n_elem", 50)  # Number of elements in the finger
-        self.obs_state_points = kwargs.get("obs_state_points", 10)  # Number of points for observation state
+        self.obs_state_points = kwargs.get("obs_state_points", 2)  # Number of points for observation state
 
     def reset(self, simulator):
         """
@@ -66,20 +66,22 @@ class Finger:
         rod_y = rod_state[1]
         rod_z = rod_state[2]
 
-        num_points = int(self.n_elem / self.obs_state_points)
+        # num_points = int(self.n_elem / self.obs_state_points)
         ## get full 3D state information
         rod_compact_state = np.concatenate(
             (
-                rod_x[0 : len(rod_x) + 1 : num_points],
-                rod_y[0 : len(rod_y) + 1 : num_points],
-                rod_z[0 : len(rod_z) + 1 : num_points],
+                # rod_x[0 : len(rod_x) + 1 : num_points],
+                # rod_y[0 : len(rod_y) + 1 : num_points],
+                # rod_z[0 : len(rod_z) + 1 : num_points],
+                rod_x[-1],
+                rod_y[-1],
+                rod_z[-1],
             )
         )
 
         rod_state = np.concatenate(
             (
                 rod_compact_state,
-                self.target_position
             )
         )
 
