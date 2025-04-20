@@ -375,7 +375,7 @@ class MultipleFinger(gymnasium.Env):
                 "direction": np.array([0.0, 1.0, 0.0]),
                 "normal": np.array([0.0, 0.0, 1.0]),
                 "radius": 0.002,
-                "start_pos": np.array([0.0, 0.0, 0.8]),
+                "start_pos": np.array([0.0, -0.1, 0.2]),
                 "k": 1e4,
                 "nu": 10,
                 "density": 1000,

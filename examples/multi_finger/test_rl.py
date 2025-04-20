@@ -15,6 +15,7 @@ import pickle
 import os
 import time
 import random
+from gen_gif import create_gif
 
 
 # Generate a timestamp and use it as a seed
@@ -99,7 +100,7 @@ def make_env():
         final_time= total_time,
         num_fingers=num_fingers, 
         num_steps_per_update=steps_per_tension_update,
-        finger_radius= 0.1, 
+        finger_radius= 0.13, 
         gravity=False, 
         target_angle=30,
         cylinder_enabled=cylinder_enabled)
@@ -272,6 +273,7 @@ if __name__ == "__main__":
     env = make_env()
     outputs = test_environment()
     save_rollout(outputs)
+    create_gif(outputs, f"gif_{timestamp}", fps=30)
     
 
     # model = PPO(

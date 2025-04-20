@@ -105,6 +105,8 @@ def reshape_state(state, num_fingers):
     backbone_points = (elements_per_finger) // 3
 
     # Reshape and exclude targets
+    # print("state shape:", state.shape)
+    # print("num_fingers:", num_fingers)
     reshaped = (
         state.reshape(num_fingers, elements_per_finger)  # Split into fingers
         [:, :]                                            # Remove target columns
