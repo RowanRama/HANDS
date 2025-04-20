@@ -180,7 +180,7 @@ if __name__ == "__main__":
     import sys
     
     # Use first command line argument as file name if provided, otherwise use default
-    file_name = sys.argv[1] if len(sys.argv) > 1 else "outputs2.pkl"
+    file_name = sys.argv[1] if len(sys.argv) > 1 else "sac_model/sac_hl_1745117338.pkl"
     
     try:
         # Load the outputs from the pickle file

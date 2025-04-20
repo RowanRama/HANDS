@@ -13,9 +13,22 @@ from tqdm import tqdm
 # dtmax = (base_length/n_elements) * np.sqrt(density / max(youngs_modulus, shear_modulus)) # Maximum size of time step
 import pickle
 import os
+import time
+import random
 
 
-#everytime we run test_reward.py, generate random seed 
+# Generate a timestamp and use it as a seed
+timestamp = int(time.time())
+random.seed(timestamp)
+np.random.seed(timestamp)
+
+# Start logging the timestamp for reproducibility
+log_dir = f"./sac/{timestamp}/"  # Create a directory with the timestamp
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f"run_log_{timestamp}.txt")  # Log file with timestamp
+
+with open(log_file, "a") as f:
+    f.write(f"Run started at timestamp: {timestamp}\n")
 
 # List of points to go in X-Y plane
 points_to_go = np.array([
@@ -90,6 +103,7 @@ def make_env():
         gravity=False, 
         target_angle=30,
         cylinder_enabled=cylinder_enabled)
+    env.reset(seed=timestamp) #initializes with param
     return env
     
 
@@ -99,7 +113,7 @@ def done_function(state, action, info):
 
 def get_model(env):
 
-    log_dir = "./ppo_case1_batch16000/"
+    log_dir = "./sac/"
     os.makedirs(log_dir, exist_ok=True)
     new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
 
@@ -115,6 +129,7 @@ def get_model(env):
         tau=0.005,
         verbose=1,
         tensorboard_log=log_dir,
+        seed=timestamp,
     )
     
 
@@ -126,7 +141,7 @@ def get_model(env):
 
 def test_environment():
     env = make_env()
-    state = env.reset() #initializes with param
+    state = env.reset(seed=timestamp) #initializes with param
     model = get_model(env)
 
     outputs = []  # Store the outputs for each step
@@ -143,23 +158,14 @@ def test_environment():
         action, _states = model.predict(obs, deterministic=True) #action space should be 4, 2
         obs, reward, done, _, info = env.step(action)
 
-        step_data = {
-            "step": step,
-            "action": action,
-            "state": obs,
-            "reward": reward,
-            "points_bb": info["position"],
-            "time": step * dT_L,
-            "tensions": action,
-            "sphere_position": env.sphere.position_collection.copy()
-        }
-        outputs.append(step_data)
+        step_data = info["data"]
+        outputs.extend(step_data)
         step += 1
 
 
 
             
-        print(outputs)
+        #print(outputs)
         return outputs 
 
     # Save rollout
@@ -251,16 +257,22 @@ def plot_results(outputs):
     # ax.grid()
 
     # plt.show()
-    
+def save_rollout(outputs):
+    # rollout_file = os.path.join(log_dir, f"sac_hl_{timestamp}.pkl")  # File name with timestamp
+    with open(f"rollout_{timestamp}", "wb") as f:
+        pickle.dump(outputs, f)
+    print(f"Rollout saved to {timestamp}")
 
 if __name__ == "__main__":
     # Setup logging
-    log_dir = "./ppo_case1_batch16000/"
+    log_dir = "./sac_model/"
     os.makedirs(log_dir, exist_ok=True)
     new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
 
     env = make_env()
-    test_environment()
+    outputs = test_environment()
+    save_rollout(outputs)
+    
 
     # model = PPO(
     #     policy="MlpPolicy",
