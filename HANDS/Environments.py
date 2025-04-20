@@ -129,6 +129,10 @@ class SingleFinger(gymnasium.Env):
 
         :return: Initial observation of the environment.
         """
+        def reset(self, *, seed=None, options=None):
+            super().reset(seed=seed)
+            if seed is not None:
+                np.random.seed(seed)
         self.simulator = SoftRobotSimulator()
 
         self.finger.reset(self.simulator)
@@ -350,7 +354,7 @@ class MultipleFinger(gymnasium.Env):
     """
     Class representing a single finger environment for the soft manipulator.
     """
-
+    
     # Required for OpenAI Gym interface
     metadata = {"render.modes": ["human"]}
 
@@ -415,7 +419,7 @@ class MultipleFinger(gymnasium.Env):
         print("Total learning steps", self.total_learning_steps)
 
         # Define action space (4 tension values)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(num_fingers,2), dtype=np.float32)
 
         self.obs_state_points = 10
         num_points = int(self.n_elem / self.obs_state_points)
@@ -458,12 +462,15 @@ class MultipleFinger(gymnasium.Env):
         self.sphere_enabled = sphere_enabled
         self.sphere_params = sphere_params
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
         """
         Reset the environment to its initial state.
 
         :return: Initial observation of the environment.
         """
+        super().reset(seed=seed)
+        if seed is not None:
+            np.random.seed(seed)
         self.simulator = SoftRobotSimulator()
 
         for finger in self.fingers:
@@ -544,7 +551,8 @@ class MultipleFinger(gymnasium.Env):
         self.time_tracker = np.float64(0.0)
 
         # After resetting the environment return state information
-        return state
+        return state, {}
+
     
     def get_state(self):
         """
@@ -641,8 +649,11 @@ class MultipleFinger(gymnasium.Env):
             extra_info["cylinder_position"] = self.cylin.position_collection.copy()
             extra_info["cylinder_director"] = self.cylin.director_collection.copy()
         
+        
+        terminated = done  # based on your existing logic
+        truncated = False  # unless you implement time limits manually
 
-        return state, reward, done, extra_info
+        return state, reward, terminated, truncated, extra_info
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
@@ -667,11 +678,13 @@ class HLControlEnv(MultipleFinger):
         self.target_angle = 30
         self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+
         """
         Reset the environment to its initial state.
 
         :return: Initial observation of the environment.
+        
         """
         self.step_count = 0
         self.outputs = []  # Initialize outputs for each episode
@@ -736,8 +749,11 @@ class HLControlEnv(MultipleFinger):
         reward = self.reward_function(state, action, info, self.target_angle)
 
         info["data"] = intermediate
+        terminated = done
+        truncated = False
         
-        return state, reward, done, info
+        return state, reward, terminated, truncated, info
+
 
     def render(self, mode="human"):
         """Render the environment (not implemented)."""
