@@ -74,7 +74,7 @@ def reward_function(state, action, info, target_orientation):
     print("target_angle: ", target_orientation)
 
 
-    diff = current_angle - target_orientation
+    diff = current_angle - np.radians(target_orientation)
     reward = -((diff + np.pi) % (2*np.pi) - np.pi) ** 2
 
 
