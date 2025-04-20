@@ -27,7 +27,42 @@ points_to_go = np.array([
     [0.2, -0.2, 0.0],
     [0.2, -0.1, 0.0],
     [0.2, 0.0, 0.0]])/2
+# initial_point = np.array([0.1,0, 0,0.1,0, -0.1,0,0, -0.1,0,0])
 
+            
+l = 0.1 # Length of the cylinder
+r = 0.005 # Radius of the cylinder
+def gpc(theta, l = 0.8*l, r = 1.3*r):
+    # restrict the input range to 0 to pi/2
+    v1 = np.array([np.cos(theta), np.sin(theta), 0.0])*l/2
+    v2 = np.array([np.sin(theta), -np.cos(theta), 0.0])*r
+    pp1 = v1 + v2
+    pp2 = v1 - v2
+    pp3 = -v1 + v2
+    pp4 = -v1 - v2
+    return [pp1, pp2, pp3, pp4]
+def gpc2(theta, l = 0.8*l, r = 1.3*r):
+    # restrict the input range to 0 to -pi/2
+    v1 = np.array([np.cos(theta), np.sin(theta), 0.0])*l/2
+    v2 = np.array([np.sin(theta), -np.cos(theta), 0.0])*r
+    pp1 = v1 + v2
+    pp2 = v1 - v2
+    pp3 = -v1 + v2
+    pp4 = -v1 - v2
+    return [pp2, pp3, pp4, pp1]
+# initial_point = [
+#     [np.array([0.1, 0.0, 0.0]),    np.array([0.03, 0.03, 0.0]),     np.array([-0.1, 0.0, 0.0]), np.array([0.0, -0.1, 0.0])],
+#     [np.array([0.02, -0.02, 0.0]),     np.array([0.07, 0.0, 0.0]),      np.array([-0.1, -0.0, 0.0]), np.array([-0., -0.1, 0.0])],
+#     [np.array([0.1, 0.0, 0.0]),     np.array([0.0, 0.1, 0.0]),      np.array([-0.1, 0.0, 0.0]), np.array([0., -0.1, 0.0])],
+# ]
+# for i in range(len(initial_point)):
+#     for j in range(len(initial_point[i])):
+#         if j>=2:
+#             initial_point[i][j] = -np.array(initial_point[i][j-2]) # to make it symmetric
+original_state =   [np.array([0.1, 0.0, 0.0]),    np.array([0.0, 0.1, 0.0]),     np.array([-0.1, 0.0, 0.0]), np.array([0.0, -0.1, 0.0])]
+original_state =   [np.array([0.1, 0.0, 0.0])*0.5,    np.array([0.0, 0.1, 0.0])*0.5,     np.array([-0.1, 0.0, 0.0])*0.5, np.array([0.0, -0.1, 0.0])*0.5]
+initial_point = [gpc(np.pi/4), gpc(0), gpc2(-np.pi/2), gpc(np.pi/2), gpc(0), original_state] # 4 points in the X-Y plane
+initial_point = [gpc(np.pi/2), gpc(0), original_state, gpc2(0), gpc2(-np.pi/2), original_state] # 4 points in the X-Y plane
 def point_fn(time, total_time):
     """
     Function to determine the point to go based on time.
@@ -48,7 +83,7 @@ def done_function(state, action, info):
 
 def test_environment():
     num_fingers = 4
-    total_time = 1  # Total time for the simulation
+    total_time = 10  # Total time for the simulation
     time_step = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
     steps_per_tension_update = 100  # Number of steps per tension update
     controller_steps_per_convergence = 200
@@ -63,7 +98,17 @@ def test_environment():
         num_steps_per_update=steps_per_tension_update,
         finger_radius= 0.1, 
         gravity=False, 
-        cylinder_enabled=cylinder_enabled)
+        cylinder_enabled=cylinder_enabled,
+        cylin_params = {
+                "length": l,
+                "direction": np.array([0.0, 1.0, 0.0]),
+                "normal": np.array([0.0, 0.0, 1.0]),
+                "radius": r,
+                "start_pos": np.array([0,-l/2, 0.2]),
+                "k": 1e4,
+                "nu": 1e4, # Cylinder's damping coefficient
+                "density": 1000,
+            },)
     
     state = env.reset() #initializes with params
 
@@ -74,8 +119,8 @@ def test_environment():
     
     for hl_step in tqdm(range(num_steps)):
 
-        point_to_go = [points_to_go[hl_step%len(points_to_go)]] * num_fingers
-        
+        point_to_go = initial_point[hl_step % len(initial_point)]  # Get the point to go based on the current step
+        # print("point_to_go", point_to_go)
         state, reward, done, _, additional_info = env.step(point_to_go)  # Take a step in the environment
     
         outputs.extend(additional_info["data"])
@@ -83,7 +128,7 @@ def test_environment():
             print("Episode finished")
             break
         
-    print(outputs)
+    # print(outputs)
     return outputs  # Return the collected outputs for plotting or further analysis
 
 def plot_results(outputs):

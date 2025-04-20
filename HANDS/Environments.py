@@ -607,6 +607,8 @@ class MultipleFinger(gymnasium.Env):
                 self.time_tracker,
                 self.time_step,
             )
+            if self.cylinder_enabled:
+                self.cylin.omega_collection[:] = self.cylin.omega_collection * np.exp(-self.time_step *self.cylin_params["nu"])
 
         self.current_step += 1
 

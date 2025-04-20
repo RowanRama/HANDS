@@ -14,7 +14,8 @@ def load_outputs(file_path):
         outputs = pickle.load(f)
     return outputs
 
-
+# get system time
+import time
 
 def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
     """
@@ -27,8 +28,8 @@ def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
 
     cylinder_centers = [data.get("cylinder_position") for data in outputs]
     cylinder_directions = [data.get("cylinder_director")[2, ...] for data in outputs]
-    cylinder_radius = 0.02
-    cylinder_length = 0.2
+    cylinder_radius = 0.005
+    cylinder_length = 0.1
 
     fps = 10
     total_frames = int(simulation_duration * fps)
@@ -43,7 +44,7 @@ def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
     ax1 = fig.add_subplot(121, projection='3d')
     ax1.set_xlim([-0.25, 0.25])
     ax1.set_ylim([-0.25, 0.25])
-    ax1.set_zlim([0, 0.25])
+    ax1.set_zlim([0, 0.4])
     ax1.set_xlabel('X')
     ax1.set_ylabel('Y')
     ax1.set_zlabel('Z')
@@ -55,6 +56,7 @@ def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
     ax2.set_xlabel('X')
     ax2.set_ylabel('Y')
     ax2.set_title('Top-Down View (-Z Axis)')
+    ax2.grid()
 
     # Finger visuals
     lines_3d = [ax1.plot([], [], [], marker='o', linestyle='-')[0] for _ in range(num_fingers)]
@@ -134,6 +136,8 @@ def create_gif(outputs, gif_path="backbone_with_cylinder.gif"):
         return lines_3d + lines_2d + [cylinder_surface, rectangle_patch]
 
     ani = FuncAnimation(fig, update, frames=len(states), interval=1000 / fps, blit=False)
+    current_time = time.strftime("%Y%m%d_%H%M%S")
+    gif_path = f"backbone_with_cylinder_{current_time}.gif"
     ani.save(gif_path, writer='imagemagick', fps=fps)
     print(f"GIF saved to {gif_path}")
 
@@ -188,7 +192,7 @@ if __name__ == "__main__":
         print(f"Loading data from {file_name}")
     except FileNotFoundError:
         print(f"File {file_name} not found, falling back to outputs2.pkl")
-        outputs = load_outputs("outputs2.pkl")
+        outputs = load_outputs("multi_hl.pkl")
 
     # Create and save the GIF
     create_gif(outputs)
