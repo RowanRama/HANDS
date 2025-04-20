@@ -422,7 +422,7 @@ class MultipleFinger(gymnasium.Env):
         self.action_space = spaces.Box(low=-.3, high=.3, shape=(num_fingers,2), dtype=np.float32)
 
         self.obs_state_points = 10
-        num_points = int(self.n_elem / self.obs_state_points)
+        self.num_points = int(self.n_elem / self.obs_state_points)
         self.num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
 
         # 8: 4 points for velocity and 4 points for orientation
@@ -749,13 +749,13 @@ class HLControlEnv(MultipleFinger):
 
                     rod_compact_state = np.concatenate(
                         (
-                            rod_x[0 : len(rod_x) + 1 : self.num_rod_state],
-                            rod_y[0 : len(rod_y) + 1 : self.num_rod_state],
-                            rod_z[0 : len(rod_z) + 1 : self.num_rod_state],
+                            rod_x[0 : len(rod_x) + 1 : self.num_points],
+                            rod_y[0 : len(rod_y) + 1 : self.num_points],
+                            rod_z[0 : len(rod_z) + 1 : self.num_points],
                         )
                     )
 
-                    rod_state = np.concatenate(
+                    s = np.concatenate(
                         (
                             s,
                             rod_compact_state,

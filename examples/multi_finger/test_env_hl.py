@@ -40,7 +40,7 @@ def point_fn(time, total_time):
     y = radius * np.sin(angle)
     return np.array([x, y, 0.0])  # Return the point in X-Y plane with Z=0.0
 
-def reward_function(state, action, info):
+def reward_function(state, action, info, target_angle):
     return 0.0
 
 def done_function(state, action, info):
@@ -48,7 +48,7 @@ def done_function(state, action, info):
 
 def test_environment():
     num_fingers = 4
-    total_time = 5  # Total time for the simulation
+    total_time = 1  # Total time for the simulation
     time_step = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
     steps_per_tension_update = 100  # Number of steps per tension update
     controller_steps_per_convergence = 200
@@ -57,7 +57,6 @@ def test_environment():
     
     env = HLControlEnv(
         reward_function, 
-        done_function, 
         convergence_steps=controller_steps_per_convergence,
         final_time= total_time,
         num_fingers=num_fingers, 
@@ -77,7 +76,7 @@ def test_environment():
 
         point_to_go = [points_to_go[hl_step%len(points_to_go)]] * num_fingers
         
-        state, reward, done, additional_info = env.step(point_to_go)  # Take a step in the environment
+        state, reward, done, _, additional_info = env.step(point_to_go)  # Take a step in the environment
     
         outputs.extend(additional_info["data"])
         if done:
