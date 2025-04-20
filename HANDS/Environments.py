@@ -423,7 +423,7 @@ class MultipleFinger(gymnasium.Env):
 
         self.obs_state_points = 10
         self.num_points = int(self.n_elem / self.obs_state_points)
-        self.num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
+        self.num_rod_state = len(np.ones(self.n_elem + 1)[0::self.num_points])
 
         # 8: 4 points for velocity and 4 points for orientation
         # 11: 3 points for target position plus 8 for velocity and orientation
