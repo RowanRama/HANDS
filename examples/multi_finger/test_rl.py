@@ -114,9 +114,12 @@ def done_function(state, action, info):
 
 def get_model(env):
 
-    log_dir = "./sac/"
+    # log_dir = "./sac/"
+    log_dir = "./sac_model/"
+
     os.makedirs(log_dir, exist_ok=True)
     new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
+    #new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
 
     model = SAC(
         policy="MlpPolicy",
@@ -136,7 +139,7 @@ def get_model(env):
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(2))
+    model.learn(total_timesteps=int(10000))
     model.save(os.path.join(log_dir, "sac"))
     return model
 
@@ -266,9 +269,7 @@ def save_rollout(outputs):
 
 if __name__ == "__main__":
     # Setup logging
-    log_dir = "./sac_model/"
-    os.makedirs(log_dir, exist_ok=True)
-    new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
+   
 
     env = make_env()
     outputs = test_environment()
