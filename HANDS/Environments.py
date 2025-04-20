@@ -421,9 +421,9 @@ class MultipleFinger(gymnasium.Env):
         # Define action space (4 tension values)
         self.action_space = spaces.Box(low=-.3, high=.3, shape=(num_fingers,2), dtype=np.float32)
 
-        self.obs_state_points = 2
+        self.obs_state_points = 10
         num_points = int(self.n_elem / self.obs_state_points)
-        num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
+        self.num_rod_state = len(np.ones(self.n_elem + 1)[0::num_points])
 
         # 8: 4 points for velocity and 4 points for orientation
         # 11: 3 points for target position plus 8 for velocity and orientation
@@ -739,10 +739,33 @@ class HLControlEnv(MultipleFinger):
                 state_cat = np.concatenate((state_cat, state), axis=0)
 
             if self.save_logs:
+                s = np.zeros((0,))
+                for finger in self.fingers:
+                
+                    rod_state = finger.rod.position_collection
+                    rod_x = rod_state[0]
+                    rod_y = rod_state[1]
+                    rod_z = rod_state[2]
+
+                    rod_compact_state = np.concatenate(
+                        (
+                            rod_x[0 : len(rod_x) + 1 : self.num_rod_state],
+                            rod_y[0 : len(rod_y) + 1 : self.num_rod_state],
+                            rod_z[0 : len(rod_z) + 1 : self.num_rod_state],
+                        )
+                    )
+
+                    rod_state = np.concatenate(
+                        (
+                            s,
+                            rod_compact_state,
+                        )
+                    )
+
                 step_data = {
                     "step": (self.step_count * self.convergence_steps + i),
                     "action": action,
-                    "state": state,
+                    "state": s,
                     "reward": reward,
                     "done": done,
                     "time": (self.step_count * self.convergence_steps + i) * self.dt_L,
