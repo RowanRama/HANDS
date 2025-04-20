@@ -37,8 +37,8 @@ class PIDController(BaseController):
         self.max_tension = max_tension
 
         # Internal variables
-        self._prev_error = np.zeros(3)
-        self._integral = np.zeros(3)
+        self._prev_error = np.zeros(2)
+        self._integral = np.zeros(2)
         # self._last_time = 0.0
 
     def get_tensions(self, current_tip_position, goal_tip_position, dt) -> np.ndarray:
@@ -65,7 +65,7 @@ class PIDController(BaseController):
         if goal_tip_position.ndim != 1 or goal_tip_position.size not in [2, 3]:
             raise ValueError(f"goal_tip_position should be a 1D array of 2 or 3 elements. Got array of shape {goal_tip_position.shape}.")
         # Check if the current_tip_position is a 1D arrary of 2 elements
-        error = current_tip_position - goal_tip_position
+        error = current_tip_position[0:2] - goal_tip_position[0:2]
         #dt = current_time - self._last_time if self._last_time is not None else 0
 
         # print(f"Error: {error}, dt: {dt}")

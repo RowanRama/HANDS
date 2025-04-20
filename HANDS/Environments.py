@@ -123,16 +123,16 @@ class SingleFinger(gymnasium.Env):
         self.sphere_enabled = sphere_enabled
         self.sphere_params = sphere_params
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+
         """
         Reset the environment to its initial state.
 
         :return: Initial observation of the environment.
         """
-        def reset(self, *, seed=None, options=None):
-            super().reset(seed=seed)
-            if seed is not None:
-                np.random.seed(seed)
+        super().reset(seed=seed)
+        if seed is not None:
+            np.random.seed(seed)
         self.simulator = SoftRobotSimulator()
 
         self.finger.reset(self.simulator)
@@ -561,8 +561,9 @@ class MultipleFinger(gymnasium.Env):
         :return: Current state of the environment.
         """
         state = np.zeros((0,))
-        for finger in self.fingers:
+        for finger in self.fingers: #12
             finger_state = finger.get_state()
+            #print("finger state:", finger_state)
             state = np.concatenate((state, finger_state), axis=0)
 
         return state
@@ -697,7 +698,11 @@ class HLControlEnv(MultipleFinger):
         """
         self.step_count = 0
         self.outputs = []  # Initialize outputs for each episode
-        return super().reset()
+        state_once, _ = super().reset()
+       # print(state_once)
+        # repeat the state for the number of time points
+        state = np.repeat(state_once, self.time_points)
+        return state, {}
     
     def step(self, action):
         """
@@ -727,7 +732,8 @@ class HLControlEnv(MultipleFinger):
         time_steps = self.convergence_steps // self.time_points
 
         for i in range(1, self.convergence_steps+1):
-            state, reward, done, info = super().step(action)
+            state, reward, done, truncated, info = super().step(action)
+           # print("state size", state.shape)
             
             if i % time_steps == 0:
                 state_cat = np.concatenate((state_cat, state), axis=0)

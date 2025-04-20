@@ -68,24 +68,28 @@ class Finger:
 
         # num_points = int(self.n_elem / self.obs_state_points)
         ## get full 3D state information
-        rod_compact_state = np.concatenate(
-            (
-                # rod_x[0 : len(rod_x) + 1 : num_points],
-                # rod_y[0 : len(rod_y) + 1 : num_points],
-                # rod_z[0 : len(rod_z) + 1 : num_points],
-                rod_x[-1],
-                rod_y[-1],
-                rod_z[-1],
-            )
-        )
+        # print(len(rod_x))
+        # print(rod_x)
 
-        rod_state = np.concatenate(
-            (
-                rod_compact_state,
-            )
-        )
+        # rod_compact_state = np.concatenate(
+        #     (
+        #         # rod_x[0 : len(rod_x) + 1 : num_points],
+        #         # rod_y[0 : len(rod_y) + 1 : num_points],
+        #         # rod_z[0 : len(rod_z) + 1 : num_points],
+        #         rod_x[len(rod_x) - 1],
+        #         rod_y[len(rod_x) - 1],
+        #         rod_z[len(rod_x) - 1]
+        #     )
+        # )
 
-        return rod_state
+        # rod_state = np.concatenate(
+        #     (
+        #         rod_compact_state,
+        #     )
+        # )
+        rod_state = [rod_x[-1], rod_y[-1], rod_z[-1]]
+        return np.array(rod_state)
+
 
     def update(self, target_position):
         """

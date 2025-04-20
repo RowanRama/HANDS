@@ -14,6 +14,9 @@ from tqdm import tqdm
 import pickle
 import os
 
+
+#everytime we run test_reward.py, generate random seed 
+
 # List of points to go in X-Y plane
 points_to_go = np.array([
     #[0.1, 0.1],
@@ -117,7 +120,7 @@ def get_model(env):
 
     model.set_logger(new_logger)
 
-    model.learn(total_timesteps=int(5000))
+    model.learn(total_timesteps=int(2))
     model.save(os.path.join(log_dir, "sac"))
     return model
 
