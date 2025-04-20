@@ -664,6 +664,7 @@ class HLControlEnv(MultipleFinger):
         self.convergence_steps = convergence_steps
         self.step_count = 0
         self.save_logs = save_logs
+        self.target_angle = 30
         self.dt_L = self.time_step * self.num_steps_per_update  # The effective time step for the tension function
 
     def reset(self):
@@ -732,7 +733,7 @@ class HLControlEnv(MultipleFinger):
         #done = done or self.done_function(state, action, info)
 
         # Calculate the reward using the provided reward function
-        reward = self.reward_function(state, action, info)
+        reward = self.reward_function(state, action, info, self.target_angle)
 
         info["data"] = intermediate
         

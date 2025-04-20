@@ -40,13 +40,35 @@ def point_fn(time, total_time):
     y = radius * np.sin(angle)
     return np.array([x, y, 0.0])  # Return the point in X-Y plane with Z=0.0
 
-def reward_function(state, action, info):
-    return 0.0
+def reward_function(state, action, info, target_orientation):
+    directors = info["cylinder_director"][2, ...]
+   # print(f"Directors: {directors}")
+
+    current_x = np.reshape(directors, (3,))  # Normal vector (z world, x cylinder)
+    #project to XY (world) which is YZ (cylinder)
+    current_angle = np.arctan2(current_x[1], current_x[0])  # Project to YZ plane
+
+    print(f"Angle about Z in rad: {(current_angle)}")
+    print(f"current_angle: {np.degrees(current_angle):.2f}°")
+    print("target_angle: ", target_orientation)
+
+
+    diff = current_angle - target_orientation
+    reward = -((diff + np.pi) % (2*np.pi) - np.pi) ** 2
+
+
+
+    print(f"Angle difference: {diff:.2f}")
+    print(f"Reward: {reward:.2f}")
+    return reward
+
+
 
 def done_function(state, action, info):
     return False
 
 def test_environment():
+    target_angle = 30  # Target orientation in world coordinates
     num_fingers = 4
     total_time = 5  # Total time for the simulation
     time_step = 1.5e-5 # timestep has to be 1.5e-5 for the simulation to work
@@ -54,6 +76,8 @@ def test_environment():
     controller_steps_per_convergence = 200
     num_steps = int(total_time/(time_step*steps_per_tension_update*controller_steps_per_convergence)) # Number of steps in the simulation
     cylinder_enabled = True
+
+
     
     env = HLControlEnv(
         reward_function, 
@@ -63,6 +87,7 @@ def test_environment():
         num_steps_per_update=steps_per_tension_update,
         finger_radius= 0.1, 
         gravity=False, 
+        target_angle=30,
         cylinder_enabled=cylinder_enabled)
     
     state = env.reset() #initializes with params
